@@ -141,6 +141,15 @@ where
                     Slash
                 }
             }
+            '"' => {
+                self.buf.clear();
+                self.buf_while(|c| c != '"');
+                if self.src.next_if(|c| c == &'"').is_some() {
+                    String(self.buf.to_string())
+                } else {
+                    Unterminated
+                }
+            }
             x if x.is_ascii_alphabetic() || x == '_' => {
                 self.buf.clear();
                 self.buf.push(x);
@@ -206,6 +215,15 @@ mod test {
         assert_eq!(l.next(), Some(Token::Slash));
         assert_eq!(l.next(), Some(Token::Dot));
         assert_eq!(l.next(), None);
+    }
+
+    #[test]
+    fn test_lexer_strings() {
+        let mut l = Lexer::new(r#"  "string"  ""  "msg" "#.chars());
+        assert_eq!(l.next(), Some(Token::String("string".to_string())));
+        assert_eq!(l.next(), Some(Token::String("".to_string())));
+        assert_eq!(l.next(), Some(Token::String("msg".to_string())));
+        assert_eq!(l.next(), None)
     }
 
     #[test]
