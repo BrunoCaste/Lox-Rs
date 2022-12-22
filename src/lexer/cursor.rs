@@ -1,6 +1,6 @@
 use std::iter::Peekable;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 pub struct Loc {
     pub row: usize,
     pub col: usize,
@@ -53,6 +53,13 @@ where
         let mut it = self.src.clone();
         it.next();
         it.next()
+    }
+
+    pub fn loc(&self) -> Loc {
+        Loc {
+            row: self.row,
+            col: self.col - self.bol,
+        }
     }
 }
 
