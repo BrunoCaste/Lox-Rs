@@ -1,8 +1,29 @@
 #![feature(is_some_and)]
 
-use std::iter::Peekable;
+use lazy_static::lazy_static;
+use std::{collections::HashMap, iter::Peekable};
 
-#[derive(PartialEq, Debug)]
+lazy_static! {
+    static ref KEYWORDS: HashMap<&'static str, Token> = HashMap::from([
+        ("and", Token::And),
+        ("class", Token::Class),
+        ("else", Token::Else),
+        ("false", Token::False),
+        ("fn", Token::Fn),
+        ("for", Token::For),
+        ("if", Token::If),
+        ("let", Token::Let),
+        ("nil", Token::Nil),
+        ("or", Token::Or),
+        ("print", Token::Print),
+        ("return", Token::Return),
+        ("this", Token::This),
+        ("true", Token::True),
+        ("while", Token::While),
+    ]);
+}
+
+#[derive(PartialEq, Debug, Clone)]
 pub enum Token {
     // Keywords
     And,
@@ -154,7 +175,9 @@ where
                 self.buf.clear();
                 self.buf.push(x);
                 self.buf_while(|c| c.is_ascii_alphanumeric() || c == '_');
-                Ident(self.buf.to_string())
+                KEYWORDS
+                    .get(&*self.buf)
+                    .map_or_else(|| Ident(self.buf.to_string()), |kw| kw.clone())
             }
             x if x.is_ascii_digit() => {
                 self.buf.clear();
@@ -269,6 +292,28 @@ abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890_"
         assert_eq!(l.next(), Some(Token::Ident("newline".to_string())));
         assert_eq!(l.next(), Some(Token::Ident("end".to_string())));
         assert_eq!(l.next(), None);
+    }
+
+    #[test]
+    fn test_lexer_keywords() {
+        let mut l = Lexer::new(
+            "and class else false fn for if let nil or print return this true while".chars(),
+        );
+        assert_eq!(l.next(), Some(Token::And));
+        assert_eq!(l.next(), Some(Token::Class));
+        assert_eq!(l.next(), Some(Token::Else));
+        assert_eq!(l.next(), Some(Token::False));
+        assert_eq!(l.next(), Some(Token::Fn));
+        assert_eq!(l.next(), Some(Token::For));
+        assert_eq!(l.next(), Some(Token::If));
+        assert_eq!(l.next(), Some(Token::Let));
+        assert_eq!(l.next(), Some(Token::Nil));
+        assert_eq!(l.next(), Some(Token::Or));
+        assert_eq!(l.next(), Some(Token::Print));
+        assert_eq!(l.next(), Some(Token::Return));
+        assert_eq!(l.next(), Some(Token::This));
+        assert_eq!(l.next(), Some(Token::True));
+        assert_eq!(l.next(), Some(Token::While));
     }
 }
 
