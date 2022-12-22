@@ -1,5 +1,9 @@
 use lazy_static::lazy_static;
-use std::{collections::HashMap, iter::Peekable};
+use std::collections::HashMap;
+
+mod cursor;
+use cursor::Cursor;
+pub use cursor::Loc;
 
 lazy_static! {
     static ref KEYWORDS: HashMap<&'static str, Token> = HashMap::from([
@@ -73,8 +77,12 @@ pub enum Token {
 }
 
 #[derive(Clone)]
-pub struct Lexer<I: Iterator<Item = char>> {
-    src: Peekable<I>,
+pub struct Lexer<I>
+where
+    I: Iterator<Item = char>,
+    I: Clone,
+{
+    cursor: Cursor<I>,
     // Used to construct literals and identifiers
     // and to avoid repeated allocations
     buf: String,
@@ -89,32 +97,22 @@ where
 
     pub fn new(src: I) -> Self {
         Self {
-            src: src.peekable(),
+            cursor: Cursor::new(src),
             buf: String::with_capacity(Self::BUF_CAP),
         }
     }
 
-    fn eat_while(&mut self, mut f: impl FnMut(char) -> bool) {
-        while self.src.next_if(|&c| f(c)).is_some() { /* spin */ }
-    }
-
     fn buf_while(&mut self, mut f: impl FnMut(char) -> bool) {
-        while let Some(c) = self.src.next_if(|&c| f(c)) {
+        while let Some(c) = self.cursor.next_if(|&c| f(c)) {
             self.buf.push(c);
         }
     }
 
-    fn peek_snd(&self) -> Option<char> {
-        let mut other = self.src.clone();
-        other.next();
-        other.next()
-    }
-
     fn next_raw(&mut self) -> Option<Token> {
-        self.eat_while(char::is_whitespace);
+        self.cursor.eat_while(char::is_whitespace);
 
         use Token::*;
-        self.src.next().map(|c| match c {
+        self.cursor.next().map(|c| match c {
             '(' => LParen,
             ')' => RParen,
             '{' => LBrace,
@@ -126,36 +124,36 @@ where
             ';' => Semicolon,
             '*' => Star,
             '!' => {
-                if self.src.next_if(|c| c == &'=').is_some() {
+                if self.cursor.next_if(|c| c == &'=').is_some() {
                     BangEqual
                 } else {
                     Bang
                 }
             }
             '=' => {
-                if self.src.next_if(|c| c == &'=').is_some() {
+                if self.cursor.next_if(|c| c == &'=').is_some() {
                     EqualEqual
                 } else {
                     Equal
                 }
             }
             '<' => {
-                if self.src.next_if(|c| c == &'=').is_some() {
+                if self.cursor.next_if(|c| c == &'=').is_some() {
                     LessEqual
                 } else {
                     Less
                 }
             }
             '>' => {
-                if self.src.next_if(|c| c == &'=').is_some() {
+                if self.cursor.next_if(|c| c == &'=').is_some() {
                     GreaterEqual
                 } else {
                     Greater
                 }
             }
             '/' => {
-                if self.src.next_if(|c| c == &'/').is_some() {
-                    self.eat_while(|c| c != '\n');
+                if self.cursor.next_if(|c| c == &'/').is_some() {
+                    self.cursor.eat_while(|c| c != '\n');
                     Comment
                 } else {
                     Slash
@@ -164,7 +162,7 @@ where
             '"' => {
                 self.buf.clear();
                 self.buf_while(|c| c != '"');
-                if self.src.next_if(|c| c == &'"').is_some() {
+                if self.cursor.next_if(|c| c == &'"').is_some() {
                     String(self.buf.to_string())
                 } else {
                     Unterminated
@@ -182,10 +180,10 @@ where
                 self.buf.clear();
                 self.buf.push(x);
                 self.buf_while(|c| c.is_ascii_digit());
-                if self.src.peek().is_some_and(|&c| c == '.')
-                    && (self.peek_snd().is_some_and(|c| c.is_ascii_digit()))
+                if self.cursor.peek().is_some_and(|c| c == '.')
+                    && (self.cursor.peek_snd().is_some_and(|c| c.is_ascii_digit()))
                 {
-                    self.src.next();
+                    self.cursor.next();
                     self.buf.push('.');
                     self.buf_while(|c| c.is_ascii_digit())
                 }
