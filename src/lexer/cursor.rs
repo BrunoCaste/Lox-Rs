@@ -32,9 +32,9 @@ where
         }
     }
 
-    pub fn next_if(&mut self, f: impl FnOnce(&char) -> bool) -> Option<char> {
+    pub fn next_if(&mut self, f: impl FnOnce(char) -> bool) -> Option<char> {
         // Use self.next since it updates loc information
-        if self.src.peek().is_some_and(f) {
+        if self.src.peek().copied().is_some_and(f) {
             self.next()
         } else {
             None
@@ -42,7 +42,7 @@ where
     }
 
     pub fn eat_while(&mut self, mut f: impl FnMut(char) -> bool) {
-        while self.next_if(|&c| f(c)).is_some() { /* spin */ }
+        while self.next_if(&mut f).is_some() { /* spin */ }
     }
 
     pub fn peek(&mut self) -> Option<char> {

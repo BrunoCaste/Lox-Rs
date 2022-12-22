@@ -103,7 +103,7 @@ where
     }
 
     fn buf_while(&mut self, mut f: impl FnMut(char) -> bool) {
-        while let Some(c) = self.cursor.next_if(|&c| f(c)) {
+        while let Some(c) = self.cursor.next_if(&mut f) {
             self.buf.push(c);
         }
     }
@@ -124,35 +124,35 @@ where
             ';' => Semicolon,
             '*' => Star,
             '!' => {
-                if self.cursor.next_if(|c| c == &'=').is_some() {
+                if self.cursor.next_if(|c| c == '=').is_some() {
                     BangEqual
                 } else {
                     Bang
                 }
             }
             '=' => {
-                if self.cursor.next_if(|c| c == &'=').is_some() {
+                if self.cursor.next_if(|c| c == '=').is_some() {
                     EqualEqual
                 } else {
                     Equal
                 }
             }
             '<' => {
-                if self.cursor.next_if(|c| c == &'=').is_some() {
+                if self.cursor.next_if(|c| c == '=').is_some() {
                     LessEqual
                 } else {
                     Less
                 }
             }
             '>' => {
-                if self.cursor.next_if(|c| c == &'=').is_some() {
+                if self.cursor.next_if(|c| c == '=').is_some() {
                     GreaterEqual
                 } else {
                     Greater
                 }
             }
             '/' => {
-                if self.cursor.next_if(|c| c == &'/').is_some() {
+                if self.cursor.next_if(|c| c == '/').is_some() {
                     self.cursor.eat_while(|c| c != '\n');
                     Comment
                 } else {
@@ -162,7 +162,7 @@ where
             '"' => {
                 self.buf.clear();
                 self.buf_while(|c| c != '"');
-                if self.cursor.next_if(|c| c == &'"').is_some() {
+                if self.cursor.next_if(|c| c == '"').is_some() {
                     String(self.buf.to_string())
                 } else {
                     Unterminated
