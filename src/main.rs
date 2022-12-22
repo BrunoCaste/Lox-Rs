@@ -142,6 +142,34 @@ where
     }
 }
 
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn test_lexer_punctuation() {
+        let mut l = Lexer::new("(){};,+-*!===<=>=!=<>/.\n".chars());
+        assert_eq!(l.next(), Some(Token::LParen));
+        assert_eq!(l.next(), Some(Token::RParen));
+        assert_eq!(l.next(), Some(Token::LBrace));
+        assert_eq!(l.next(), Some(Token::RBrace));
+        assert_eq!(l.next(), Some(Token::Semicolon));
+        assert_eq!(l.next(), Some(Token::Comma));
+        assert_eq!(l.next(), Some(Token::Plus));
+        assert_eq!(l.next(), Some(Token::Minus));
+        assert_eq!(l.next(), Some(Token::Star));
+        assert_eq!(l.next(), Some(Token::BangEqual));
+        assert_eq!(l.next(), Some(Token::EqualEqual));
+        assert_eq!(l.next(), Some(Token::LessEqual));
+        assert_eq!(l.next(), Some(Token::GreaterEqual));
+        assert_eq!(l.next(), Some(Token::BangEqual));
+        assert_eq!(l.next(), Some(Token::Less));
+        assert_eq!(l.next(), Some(Token::Greater));
+        assert_eq!(l.next(), Some(Token::Slash));
+        assert_eq!(l.next(), Some(Token::Dot));
+        assert_eq!(l.next(), None);
+    }
+}
+
 fn main() {
     println!("Hello, world!");
 }
