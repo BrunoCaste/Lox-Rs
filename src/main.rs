@@ -70,10 +70,11 @@ pub enum Token {
     Ident(String),
 
     Comment,
-    Invalid,
+    Unexpected,
     Unterminated,
 }
 
+#[derive(Clone)]
 struct Lexer<I: Iterator<Item = char>> {
     src: Peekable<I>,
     // Used to construct literals and identifiers
@@ -192,7 +193,7 @@ where
                 }
                 Token::Number(self.buf.parse().unwrap())
             }
-            _ => todo!(),
+            _ => Unexpected,
         })
     }
 }
@@ -314,6 +315,37 @@ abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890_"
         assert_eq!(l.next(), Some(Token::This));
         assert_eq!(l.next(), Some(Token::True));
         assert_eq!(l.next(), Some(Token::While));
+    }
+
+    #[test]
+    fn test_lexer_comments() {
+        let mut l1 = Lexer::new(
+            "foo\n// this is a comment\nbar // another comment\n// third comment\nend".chars(),
+        );
+        let mut l2 = l1.clone();
+
+        assert_eq!(l1.next_raw(), Some(Token::Ident("foo".to_string())));
+        assert_eq!(l1.next_raw(), Some(Token::Comment));
+        assert_eq!(l1.next_raw(), Some(Token::Ident("bar".to_string())));
+        assert_eq!(l1.next_raw(), Some(Token::Comment));
+        assert_eq!(l1.next_raw(), Some(Token::Ident("end".to_string())));
+        assert_eq!(l1.next_raw(), None);
+
+        assert_eq!(l2.next(), Some(Token::Ident("foo".to_string())));
+        assert_eq!(l2.next(), Some(Token::Ident("bar".to_string())));
+        assert_eq!(l2.next(), Some(Token::Ident("end".to_string())));
+        assert_eq!(l2.next(), None);
+    }
+
+    #[test]
+    fn test_lexer_errors() {
+        let mut l = Lexer::new(r#"foo(bar @ ) "string true and 1 == 1 "#.chars());
+        assert_eq!(l.next(), Some(Token::Ident("foo".to_string())));
+        assert_eq!(l.next(), Some(Token::LParen));
+        assert_eq!(l.next(), Some(Token::Ident("bar".to_string())));
+        assert_eq!(l.next(), Some(Token::Unexpected));
+        assert_eq!(l.next(), Some(Token::RParen));
+        assert_eq!(l.next(), Some(Token::Unterminated));
     }
 }
 
