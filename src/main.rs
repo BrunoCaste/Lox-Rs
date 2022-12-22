@@ -186,7 +186,7 @@ mod test {
     use super::*;
     #[test]
     fn test_lexer_punctuation() {
-        let mut l = Lexer::new("(){};,+-*!===<=>=!=<>/.\n".chars());
+        let mut l = Lexer::new("(){};,+-*!===<=>=!=<>/.".chars());
         assert_eq!(l.next(), Some(Token::LParen));
         assert_eq!(l.next(), Some(Token::RParen));
         assert_eq!(l.next(), Some(Token::LBrace));
@@ -240,6 +240,16 @@ abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890_"
         assert_eq!(l.next(), Some(Token::Number(456.0)));
         assert_eq!(l.next(), Some(Token::Number(123.0)));
         assert_eq!(l.next(), Some(Token::Dot));
+        assert_eq!(l.next(), None);
+    }
+
+    #[test]
+    fn test_lexer_whitespace() {
+        let mut l = Lexer::new("space    tabs\t\t\t\tnewline\n\n\nend\r\n".chars());
+        assert_eq!(l.next(), Some(Token::Ident("space".to_string())));
+        assert_eq!(l.next(), Some(Token::Ident("tabs".to_string())));
+        assert_eq!(l.next(), Some(Token::Ident("newline".to_string())));
+        assert_eq!(l.next(), Some(Token::Ident("end".to_string())));
         assert_eq!(l.next(), None);
     }
 }
