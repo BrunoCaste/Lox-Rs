@@ -55,20 +55,39 @@ pub enum Token {
 
 struct Lexer<I: Iterator<Item = char>> {
     src: Peekable<I>,
+    // Used to construct literals and identifiers
+    // and to avoid repeated allocations
+    buf: String,
 }
 
 impl<I> Lexer<I>
 where
     I: Iterator<Item = char>,
+    I: Clone,
 {
+    const BUF_CAP: usize = 64;
+
     pub fn new(src: I) -> Self {
         Self {
             src: src.peekable(),
+            buf: String::with_capacity(Self::BUF_CAP),
         }
     }
 
     fn eat_while(&mut self, mut f: impl FnMut(char) -> bool) {
         while self.src.next_if(|&c| f(c)).is_some() { /* spin */ }
+    }
+
+    fn buf_while(&mut self, mut f: impl FnMut(char) -> bool) {
+        while let Some(c) = self.src.next_if(|&c| f(c)) {
+            self.buf.push(c);
+        }
+    }
+
+    fn peek_snd(&self) -> Option<char> {
+        let mut other = self.src.clone();
+        other.next();
+        other.next()
     }
 
     fn next_raw(&mut self) -> Option<Token> {
@@ -122,6 +141,25 @@ where
                     Slash
                 }
             }
+            x if x.is_ascii_alphabetic() || x == '_' => {
+                self.buf.clear();
+                self.buf.push(x);
+                self.buf_while(|c| c.is_ascii_alphanumeric() || c == '_');
+                Ident(self.buf.to_string())
+            }
+            x if x.is_ascii_digit() => {
+                self.buf.clear();
+                self.buf.push(x);
+                self.buf_while(|c| c.is_ascii_digit());
+                if self.src.peek().is_some_and(|&c| c == '.')
+                    && (self.peek_snd().is_some_and(|c| c.is_ascii_digit()))
+                {
+                    self.src.next();
+                    self.buf.push('.');
+                    self.buf_while(|c| c.is_ascii_digit())
+                }
+                Token::Number(self.buf.parse().unwrap())
+            }
             _ => todo!(),
         })
     }
@@ -130,6 +168,7 @@ where
 impl<I> Iterator for Lexer<I>
 where
     I: Iterator<Item = char>,
+    I: Clone,
 {
     type Item = Token;
     fn next(&mut self) -> Option<Self::Item> {
@@ -165,6 +204,41 @@ mod test {
         assert_eq!(l.next(), Some(Token::Less));
         assert_eq!(l.next(), Some(Token::Greater));
         assert_eq!(l.next(), Some(Token::Slash));
+        assert_eq!(l.next(), Some(Token::Dot));
+        assert_eq!(l.next(), None);
+    }
+
+    #[test]
+    fn test_lexer_identifiers() {
+        let mut l = Lexer::new(
+            "andy formless fo _ _123 _abc ab123
+abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890_"
+                .chars(),
+        );
+        assert_eq!(l.next(), Some(Token::Ident("andy".to_string())));
+        assert_eq!(l.next(), Some(Token::Ident("formless".to_string())));
+        assert_eq!(l.next(), Some(Token::Ident("fo".to_string())));
+        assert_eq!(l.next(), Some(Token::Ident("_".to_string())));
+        assert_eq!(l.next(), Some(Token::Ident("_123".to_string())));
+        assert_eq!(l.next(), Some(Token::Ident("_abc".to_string())));
+        assert_eq!(l.next(), Some(Token::Ident("ab123".to_string())));
+        assert_eq!(
+            l.next(),
+            Some(Token::Ident(
+                "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890_".to_string()
+            ))
+        );
+        assert_eq!(l.next(), None);
+    }
+
+    #[test]
+    fn test_lexer_numbers() {
+        let mut l = Lexer::new("123 123.456 .456 123.".chars());
+        assert_eq!(l.next(), Some(Token::Number(123.0)));
+        assert_eq!(l.next(), Some(Token::Number(123.456)));
+        assert_eq!(l.next(), Some(Token::Dot));
+        assert_eq!(l.next(), Some(Token::Number(456.0)));
+        assert_eq!(l.next(), Some(Token::Number(123.0)));
         assert_eq!(l.next(), Some(Token::Dot));
         assert_eq!(l.next(), None);
     }
