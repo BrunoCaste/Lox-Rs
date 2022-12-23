@@ -239,7 +239,7 @@ mod test {
     }
 
     #[test]
-    fn test_lexer_punctuation() {
+    fn punctuation() {
         let mut l = Lexer::new("(){};,+-*!===<=>=!=<>/.".chars());
         assert_eq!(l.next(), Some(tok!(LParen, 0, 0)));
         assert_eq!(l.next(), Some(tok!(RParen, 0, 1)));
@@ -263,7 +263,7 @@ mod test {
     }
 
     #[test]
-    fn test_lexer_strings() {
+    fn strings() {
         let mut l = Lexer::new(r#"  "string"  ""  "msg" "#.chars());
         assert_eq!(l.next(), Some(tok!(String("string".to_string()), 0, 2)));
         assert_eq!(l.next(), Some(tok!(String("".to_string()), 0, 12)));
@@ -272,7 +272,7 @@ mod test {
     }
 
     #[test]
-    fn test_lexer_identifiers() {
+    fn identifiers() {
         let mut l = Lexer::new(
             "andy formless fo _ _123 _abc ab123
     abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890_"
@@ -299,7 +299,7 @@ mod test {
     }
 
     #[test]
-    fn test_lexer_numbers() {
+    fn numbers() {
         let mut l = Lexer::new("123 123.456 .456 123.".chars());
         assert_eq!(l.next(), Some(tok!(Number(123.0), 0, 0)));
         assert_eq!(l.next(), Some(tok!(Number(123.456), 0, 4)));
@@ -311,7 +311,7 @@ mod test {
     }
 
     #[test]
-    fn test_lexer_whitespace() {
+    fn whitespace() {
         let mut l = Lexer::new("space    tabs\t\t\t\tnewline\n\n\nend\r\n".chars());
         assert_eq!(l.next(), Some(tok!(Ident("space".to_string()), 0, 0)));
         assert_eq!(l.next(), Some(tok!(Ident("tabs".to_string()), 0, 9)));
@@ -321,7 +321,7 @@ mod test {
     }
 
     #[test]
-    fn test_lexer_keywords() {
+    fn keywords() {
         let mut l = Lexer::new(
             "and class else false fn for if
 let nil or print return this true while"
@@ -346,7 +346,7 @@ let nil or print return this true while"
     }
 
     #[test]
-    fn test_lexer_comments() {
+    fn comments() {
         let mut l1 = Lexer::new(
             "foo\n// this is a comment\nbar // another comment\n// third comment\nend".chars(),
         );
@@ -367,7 +367,7 @@ let nil or print return this true while"
     }
 
     #[test]
-    fn test_lexer_errors() {
+    fn errors() {
         let mut l = Lexer::new(
             r#" foo(bar @ ) "string
 true and 1 == 1 "#
