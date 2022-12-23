@@ -1,4 +1,3 @@
-use crate::lexer::Token;
 #[derive(PartialEq, Debug)]
 pub enum Val {
     Number(f64),
@@ -28,7 +27,8 @@ pub enum Expr {
     Lit(Val),
 }
 
-trait Parser {
+pub use crate::lexer::Token;
+pub trait Parser {
     type Output;
     type Error;
 
