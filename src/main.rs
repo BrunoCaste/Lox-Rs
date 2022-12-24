@@ -7,11 +7,10 @@ use std::{
     process::ExitCode,
 };
 
-use ast::Parser;
 use lexer::Lexer;
-use parser::RecursiveDescent;
+use parser::{Parser, RecursiveDescent};
 
-mod ast;
+mod expr;
 mod lexer;
 mod parser;
 

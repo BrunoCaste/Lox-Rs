@@ -1,6 +1,14 @@
 use std::iter::Peekable;
 
-use crate::ast::*;
+use crate::expr::*;
+
+pub use crate::lexer::Token;
+pub trait Parser {
+    type Output;
+    type Error;
+
+    fn parse(lexer: &mut impl Iterator<Item = Token>) -> Result<Self::Output, Self::Error>;
+}
 
 pub struct RecursiveDescent;
 
