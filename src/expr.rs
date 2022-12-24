@@ -36,6 +36,7 @@ pub enum Expr {
     Not(Box<Expr>),
     Opp(Box<Expr>),
     Lit(Val),
+    Var(String),
 }
 
 macro_rules! try_numeric {
@@ -90,6 +91,7 @@ impl Expr {
                 _ => Err(()),
             },
             Lit(v) => Ok(v.clone()),
+            Var(_) => todo!(),
         }
     }
 }

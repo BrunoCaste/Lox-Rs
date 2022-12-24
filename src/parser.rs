@@ -1,30 +1,33 @@
 use std::iter::Peekable;
 
-use crate::expr::*;
+use crate::{
+    expr::{Expr, Val},
+    lexer::TokKind,
+};
 
 pub use crate::lexer::Token;
-pub trait Parser {
-    type Output;
+pub trait Parser<Output> {
     type Error;
 
-    fn parse(lexer: &mut impl Iterator<Item = Token>) -> Result<Self::Output, Self::Error>;
+    fn parse(lexer: &mut Peekable<impl Iterator<Item = Token>>) -> Result<Output, Self::Error>;
 }
 
-pub struct RecursiveDescent;
+type CompilationError = ();
 
-impl Parser for RecursiveDescent {
-    type Output = Expr;
+pub struct RecursiveDescent<T>(std::marker::PhantomData<T>);
+
+impl Parser<Expr> for RecursiveDescent<Expr> {
     type Error = ();
 
-    fn parse(lexer: &mut impl Iterator<Item = Token>) -> Result<Self::Output, Self::Error> {
+    fn parse(lexer: &mut Peekable<impl Iterator<Item = Token>>) -> Result<Expr, Self::Error> {
         Self::parse_log(&mut lexer.peekable())
     }
 }
 
-impl RecursiveDescent {
+impl RecursiveDescent<Expr> {
     fn parse_log(
         lexer: &mut Peekable<impl Iterator<Item = Token>>,
-    ) -> Result<<Self as Parser>::Output, <Self as Parser>::Error> {
+    ) -> Result<Expr, CompilationError> {
         use crate::lexer::TokKind::*;
 
         let mut lhs = Self::parse_cmp(lexer)?;
@@ -43,7 +46,7 @@ impl RecursiveDescent {
 
     fn parse_cmp(
         lexer: &mut Peekable<impl Iterator<Item = Token>>,
-    ) -> Result<<Self as Parser>::Output, <Self as Parser>::Error> {
+    ) -> Result<Expr, CompilationError> {
         use crate::lexer::TokKind::*;
 
         let mut lhs = Self::parse_term(lexer)?;
@@ -71,7 +74,7 @@ impl RecursiveDescent {
 
     fn parse_term(
         lexer: &mut Peekable<impl Iterator<Item = Token>>,
-    ) -> Result<<Self as Parser>::Output, <Self as Parser>::Error> {
+    ) -> Result<Expr, CompilationError> {
         use crate::lexer::TokKind::*;
 
         let mut lhs = Self::parse_factor(lexer)?;
@@ -90,7 +93,7 @@ impl RecursiveDescent {
 
     fn parse_factor(
         lexer: &mut Peekable<impl Iterator<Item = Token>>,
-    ) -> Result<<Self as Parser>::Output, <Self as Parser>::Error> {
+    ) -> Result<Expr, CompilationError> {
         use crate::lexer::TokKind::*;
 
         let mut lhs = Self::parse_unary(lexer)?;
@@ -109,7 +112,7 @@ impl RecursiveDescent {
 
     fn parse_unary(
         lexer: &mut Peekable<impl Iterator<Item = Token>>,
-    ) -> Result<<Self as Parser>::Output, <Self as Parser>::Error> {
+    ) -> Result<Expr, CompilationError> {
         use crate::lexer::TokKind::*;
 
         if let Some(op) = lexer.next_if(|t| matches!(t.kind, Bang | Minus)) {
@@ -127,7 +130,7 @@ impl RecursiveDescent {
 
     fn parse_primary(
         lexer: &mut Peekable<impl Iterator<Item = Token>>,
-    ) -> Result<<Self as Parser>::Output, <Self as Parser>::Error> {
+    ) -> Result<Expr, CompilationError> {
         use crate::lexer::TokKind::*;
 
         match lexer.next() {
@@ -138,6 +141,7 @@ impl RecursiveDescent {
                 False => Ok(Expr::Lit(Val::Boolean(false))),
                 Number(x) => Ok(Expr::Lit(Val::Number(x))),
                 String(s) => Ok(Expr::Lit(Val::String(s))),
+                Ident(s) => Ok(Expr::Var(s)),
                 LParen => {
                     let inner = Self::parse_log(lexer)?;
                     let closing = lexer.next();
@@ -182,13 +186,13 @@ mod test {
     fn grouping() {
         use Expr::*;
 
-        let l = Lexer::new("6 + (3 + 8)".chars());
+        let l = Lexer::new("x + (3 + 8)".chars());
         let e = RecursiveDescent::parse(&mut l.peekable());
 
         assert_eq!(
             e,
             Ok(Add(
-                Box::new(Lit(Val::Number(6.0))),
+                Box::new(Var("x".to_string())),
                 Box::new(Add(
                     Box::new(Lit(Val::Number(3.0))),
                     Box::new(Lit(Val::Number(8.0))),
@@ -250,7 +254,7 @@ mod test {
     #[test]
     fn eof_error() {
         let l = Lexer::new("2 + - 6 / ".chars());
-        let e = RecursiveDescent::parse(&mut l.peekable());
+        let e = RecursiveDescent::<Expr>::parse(&mut l.peekable());
 
         assert_eq!(e, Err(()));
     }
@@ -258,7 +262,7 @@ mod test {
     #[test]
     fn unclosed_paren() {
         let l = Lexer::new("2 + - (6 / 4".chars());
-        let e = RecursiveDescent::parse(&mut l.peekable());
+        let e = RecursiveDescent::<Expr>::parse(&mut l.peekable());
         assert_eq!(e, Err(()));
     }
 }

@@ -48,7 +48,7 @@ fn repl() -> ExitCode {
 }
 
 fn run(src: &str) -> Option<ExitCode> {
-    let mut lexer = Lexer::new(src.chars());
+    let mut lexer = Lexer::new(src.chars()).peekable();
     let expr = match RecursiveDescent::parse(&mut lexer) {
         Ok(e) => e,
         e => {
