@@ -2,7 +2,7 @@ use std::iter::Peekable;
 
 use crate::ast::*;
 
-struct RecursiveDescent;
+pub struct RecursiveDescent;
 
 impl Parser for RecursiveDescent {
     type Output = Expr;
@@ -139,7 +139,7 @@ impl RecursiveDescent {
                         Err(()) // Unclosed Paren
                     }
                 }
-                _ => panic!(),
+                _ => Err(()), // Unexpected Token
             },
         }
     }
