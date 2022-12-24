@@ -9,10 +9,12 @@ use std::{
 
 use lexer::Lexer;
 use parser::{Parser, RecursiveDescent};
+use prog::Scope;
 
 mod expr;
 mod lexer;
 mod parser;
+mod prog;
 
 fn usage(prog: String) -> ExitCode {
     eprintln!("Usage: {prog} [script]");
@@ -27,12 +29,15 @@ fn run_file(path: &str) -> ExitCode {
             return ExitCode::from(74);
         }
     };
-    run(&src).unwrap_or(ExitCode::from(0))
+    run(&src, &mut Scope::new(None)).unwrap_or(ExitCode::from(0))
 }
 
 fn repl() -> ExitCode {
     let stdin = stdin();
     let mut input = String::with_capacity(64);
+
+    let mut env = Scope::new(None);
+
     loop {
         input.clear();
         print!("> ");
@@ -41,13 +46,13 @@ fn repl() -> ExitCode {
             .read_line(&mut input)
             .expect("Error reading from stdin");
 
-        if let Some(e) = run(&input) {
+        if let Some(e) = run(&input, &mut env) {
             return e;
         }
     }
 }
 
-fn run(src: &str) -> Option<ExitCode> {
+fn run(src: &str, env: &mut Scope) -> Option<ExitCode> {
     let mut lexer = Lexer::new(src.chars()).peekable();
     let expr = match RecursiveDescent::parse(&mut lexer) {
         Ok(e) => e,
@@ -57,7 +62,7 @@ fn run(src: &str) -> Option<ExitCode> {
         }
     };
 
-    match expr.eval() {
+    match expr.eval(env) {
         Ok(v) => {
             println!("{v}");
             None

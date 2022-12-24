@@ -1,3 +1,5 @@
+use crate::prog::Scope;
+
 #[derive(PartialEq, Debug, Clone)]
 pub enum Val {
     Number(f64),
@@ -40,8 +42,8 @@ pub enum Expr {
 }
 
 macro_rules! try_numeric {
-    ($lhs:ident $op:tt $rhs:ident => $var:tt) => {{
-        let (x, y) = ($lhs.eval()?, $rhs.eval()?);
+    ($sc:ident, $lhs:ident $op:tt $rhs:ident => $var:tt) => {{
+        let (x, y) = ($lhs.eval($sc)?, $rhs.eval($sc)?);
         match (&x, &y) {
             (Val::Number(x), Val::Number(y)) => Ok(Val::$var(x $op y)),
             (Val::Number(_), _) => Err(()),
@@ -51,47 +53,47 @@ macro_rules! try_numeric {
 }
 
 impl Expr {
-    pub fn eval(&self) -> Result<Val, ()> {
+    pub fn eval(&self, scope: &mut Scope) -> Result<Val, ()> {
         use Expr::*;
         match self {
-            And(lhs, rhs) => match lhs.eval()? {
+            And(lhs, rhs) => match lhs.eval(scope)? {
                 b @ (Val::Nil | Val::Boolean(false)) => Ok(b),
-                _ => rhs.eval(),
+                _ => rhs.eval(scope),
             },
-            Or(lhs, rhs) => match lhs.eval()? {
-                Val::Nil | Val::Boolean(false) => rhs.eval(),
+            Or(lhs, rhs) => match lhs.eval(scope)? {
+                Val::Nil | Val::Boolean(false) => rhs.eval(scope),
                 b => Ok(b),
             },
             Eq(lhs, rhs) => {
-                let (x, y) = (lhs.eval()?, rhs.eval()?);
+                let (x, y) = (lhs.eval(scope)?, rhs.eval(scope)?);
                 Ok(Val::Boolean(x == y))
             }
             Ne(lhs, rhs) => {
-                let (x, y) = (lhs.eval()?, rhs.eval()?);
+                let (x, y) = (lhs.eval(scope)?, rhs.eval(scope)?);
                 Ok(Val::Boolean(x != y))
             }
-            Gt(lhs, rhs) => try_numeric!(lhs >  rhs => Boolean),
-            Ge(lhs, rhs) => try_numeric!(lhs >= rhs => Boolean),
-            Lt(lhs, rhs) => try_numeric!(lhs <  rhs => Boolean),
-            Le(lhs, rhs) => try_numeric!(lhs <= rhs => Boolean),
-            Add(lhs, rhs) => match (lhs.eval()?, rhs.eval()?) {
+            Gt(lhs, rhs) => try_numeric!(scope, lhs >  rhs => Boolean),
+            Ge(lhs, rhs) => try_numeric!(scope, lhs >= rhs => Boolean),
+            Lt(lhs, rhs) => try_numeric!(scope, lhs <  rhs => Boolean),
+            Le(lhs, rhs) => try_numeric!(scope, lhs <= rhs => Boolean),
+            Add(lhs, rhs) => match (lhs.eval(scope)?, rhs.eval(scope)?) {
                 (Val::Number(x), Val::Number(y)) => Ok(Val::Number(x + y)),
                 (Val::String(s), Val::String(t)) => Ok(Val::String(s + &t)),
                 _ => Err(()),
             },
-            Sub(lhs, rhs) => try_numeric!(lhs - rhs => Number),
-            Mul(lhs, rhs) => try_numeric!(lhs * rhs => Number),
-            Div(lhs, rhs) => try_numeric!(lhs / rhs => Number),
-            Not(arg) => match arg.eval()? {
+            Sub(lhs, rhs) => try_numeric!(scope,lhs - rhs => Number),
+            Mul(lhs, rhs) => try_numeric!(scope,lhs * rhs => Number),
+            Div(lhs, rhs) => try_numeric!(scope,lhs / rhs => Number),
+            Not(arg) => match arg.eval(scope)? {
                 Val::Nil | Val::Boolean(false) => Ok(Val::Boolean(true)),
                 _ => Ok(Val::Boolean(true)),
             },
-            Opp(arg) => match arg.eval()? {
+            Opp(arg) => match arg.eval(scope)? {
                 Val::Number(x) => Ok(Val::Number(-x)),
                 _ => Err(()),
             },
             Lit(v) => Ok(v.clone()),
-            Var(_) => todo!(),
+            Var(i) => scope.get(i),
         }
     }
 }

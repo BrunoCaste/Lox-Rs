@@ -20,7 +20,7 @@ impl Parser<Expr> for RecursiveDescent<Expr> {
     type Error = ();
 
     fn parse(lexer: &mut Peekable<impl Iterator<Item = Token>>) -> Result<Expr, Self::Error> {
-        Self::parse_log(&mut lexer.peekable())
+        Self::parse_log(lexer)
     }
 }
 
@@ -162,6 +162,14 @@ mod test {
     use crate::lexer::Lexer;
 
     use super::*;
+
+    #[test]
+    fn trailing_chars() {
+        let mut l = Lexer::new("6 + 3 + 8 ;".chars()).peekable();
+        let _: Expr = RecursiveDescent::parse(&mut l).unwrap();
+
+        assert_ne!(l.next(), None);
+    }
 
     #[test]
     fn asoc() {
