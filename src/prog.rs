@@ -2,6 +2,17 @@ use std::collections::HashMap;
 
 use crate::{expr::Val, stmt::Stmt};
 
+pub struct Prog(pub Vec<Stmt>);
+
+impl Prog {
+    pub fn exec(&self, scope: &mut Scope) -> Result<(), ()> {
+        for s in &self.0 {
+            s.exec(scope)?
+        }
+        Ok(())
+    }
+}
+
 pub struct Scope<'a> {
     values: HashMap<String, Val>,
     fallback: Option<&'a mut Scope<'a>>,

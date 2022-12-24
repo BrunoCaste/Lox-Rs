@@ -15,6 +15,7 @@ mod expr;
 mod lexer;
 mod parser;
 mod prog;
+mod stmt;
 
 fn usage(prog: String) -> ExitCode {
     eprintln!("Usage: {prog} [script]");
@@ -54,19 +55,16 @@ fn repl() -> ExitCode {
 
 fn run(src: &str, env: &mut Scope) -> Option<ExitCode> {
     let mut lexer = Lexer::new(src.chars()).peekable();
-    let expr = match RecursiveDescent::parse(&mut lexer) {
-        Ok(e) => e,
-        e => {
+    let prog = match RecursiveDescent::<prog::Prog>::parse(&mut lexer) {
+        Ok(p) => p,
+        Err(e) => {
             println!("syntax error\t{e:?}");
             return Some(ExitCode::from(1));
         }
     };
 
-    match expr.eval(env) {
-        Ok(v) => {
-            println!("{v}");
-            None
-        }
+    match prog.exec(env) {
+        Ok(_) => None,
         e => {
             println!("runtime error\t{e:?}");
             Some(ExitCode::from(1))

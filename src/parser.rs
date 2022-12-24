@@ -3,6 +3,8 @@ use std::iter::Peekable;
 use crate::{
     expr::{Expr, Val},
     lexer::TokKind,
+    prog::Prog,
+    stmt::Stmt,
 };
 
 pub use crate::lexer::Token;
@@ -15,6 +17,87 @@ pub trait Parser<Output> {
 type CompilationError = ();
 
 pub struct RecursiveDescent<T>(std::marker::PhantomData<T>);
+
+impl Parser<Prog> for RecursiveDescent<Prog> {
+    type Error = ();
+
+    fn parse(lexer: &mut Peekable<impl Iterator<Item = Token>>) -> Result<Prog, Self::Error> {
+        let mut program = Prog(Vec::new());
+
+        while lexer.peek().is_some() {
+            program.0.push(RecursiveDescent::<Stmt>::parse(lexer)?);
+        }
+        Ok(program)
+    }
+}
+
+impl Parser<Stmt> for RecursiveDescent<Stmt> {
+    type Error = ();
+
+    fn parse(lexer: &mut Peekable<impl Iterator<Item = Token>>) -> Result<Stmt, Self::Error> {
+        if lexer.next_if(|t| t.kind == TokKind::Let).is_some() {
+            Self::parse_decl(lexer)
+        } else {
+            Self::parse_stmt(lexer)
+        }
+        .map_err(|e| {
+            // Self::sync(lexer);
+            e
+        })
+    }
+}
+
+impl RecursiveDescent<Stmt> {
+    fn parse_stmt(
+        lexer: &mut Peekable<impl Iterator<Item = Token>>,
+    ) -> Result<Stmt, <Self as Parser<Stmt>>::Error> {
+        let print = lexer.next_if(|t| t.kind == TokKind::Print).is_some();
+        let expr = RecursiveDescent::<Expr>::parse(lexer)?;
+
+        if lexer.next_if(|t| t.kind == TokKind::Semicolon).is_none() {
+            println!("Expected ; after statement");
+            return Err(());
+        }
+
+        Ok(if print {
+            Stmt::Print(expr)
+        } else {
+            Stmt::Expr(expr)
+        })
+    }
+
+    fn parse_decl(
+        lexer: &mut Peekable<impl Iterator<Item = Token>>,
+    ) -> Result<Stmt, <Self as Parser<Stmt>>::Error> {
+        let var = match lexer.next() {
+            Some(Token {
+                kind: TokKind::Ident(i),
+                loc: _,
+            }) => i,
+            Some(Token { kind, loc: _ }) => {
+                println!("Expected identifier, found {:?}", kind);
+                return Err(());
+            }
+            None => {
+                println!("EOF error");
+                return Err(());
+            }
+        };
+
+        let init = if lexer.next_if(|t| t.kind == TokKind::Equal).is_some() {
+            Some(RecursiveDescent::<Expr>::parse(lexer)?)
+        } else {
+            None
+        };
+
+        if lexer.next_if(|t| t.kind == TokKind::Semicolon).is_none() {
+            println!("Expected ; after declaration");
+            return Err(());
+        }
+
+        Ok(Stmt::Decl(var, init))
+    }
+}
 
 impl Parser<Expr> for RecursiveDescent<Expr> {
     type Error = ();
@@ -134,7 +217,10 @@ impl RecursiveDescent<Expr> {
         use crate::lexer::TokKind::*;
 
         match lexer.next() {
-            None => Err(()), /* EOF error */
+            None => {
+                println!("EOF error");
+                Err(())
+            }
             Some(t) => match t.kind {
                 Nil => Ok(Expr::Lit(Val::Nil)),
                 True => Ok(Expr::Lit(Val::Boolean(true))),
@@ -148,10 +234,14 @@ impl RecursiveDescent<Expr> {
                     if closing.is_some_and(|t| t.kind == RParen) {
                         Ok(inner)
                     } else {
-                        Err(()) // Unclosed Paren
+                        println!("Unclosed paren");
+                        Err(())
                     }
                 }
-                _ => Err(()), // Unexpected Token
+                x => {
+                    println!("Unexpected Token: {:?}", x);
+                    Err(())
+                }
             },
         }
     }
