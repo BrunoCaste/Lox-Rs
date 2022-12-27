@@ -9,6 +9,8 @@ pub enum Stmt {
     Expr(Expr),
     Print(Expr),
     Decl(String, Option<Expr>),
+    If(Expr, Box<Stmt>, Option<Box<Stmt>>),
+    While(Expr, Box<Stmt>),
 }
 
 impl Stmt {
@@ -39,6 +41,20 @@ impl Stmt {
                     Val::Nil
                 };
                 scope.def(name, init);
+                Ok(())
+            }
+            Self::If(cond, then_stmt, else_stmt) => {
+                if cond.eval(scope)?.into() {
+                    then_stmt.exec(scope)?
+                } else if let Some(else_stmt) = else_stmt {
+                    else_stmt.exec(scope)?
+                }
+                Ok(())
+            }
+            Self::While(cond, body) => {
+                while cond.eval(scope)?.into() {
+                    body.exec(scope)?
+                }
                 Ok(())
             }
         }
