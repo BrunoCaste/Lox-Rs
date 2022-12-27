@@ -19,6 +19,12 @@ impl std::fmt::Display for Val {
     }
 }
 
+impl From<Val> for bool {
+    fn from(value: Val) -> Self {
+        !matches!(value, Val::Nil | Val::Boolean(false))
+    }
+}
+
 #[derive(PartialEq, Debug)]
 pub enum Expr {
     // A variant for grouping is not necessary,
