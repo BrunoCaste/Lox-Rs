@@ -54,7 +54,7 @@ impl RecursiveDescent<Stmt> {
         let stmt = if let Some(tok) = lexer.next_if(|t| {
             matches!(
                 t.kind,
-                TokKind::LBrace | TokKind::Print | TokKind::If | TokKind::While
+                TokKind::LBrace | TokKind::Print | TokKind::If | TokKind::While | TokKind::For
             )
         }) {
             match tok.kind {
@@ -98,6 +98,7 @@ impl RecursiveDescent<Stmt> {
                     let body = Self::parse_stmt(lexer)?;
                     Stmt::While(cond, Box::new(body))
                 }
+                TokKind::For => Self::parse_for(lexer)?,
                 _ => unreachable!(),
             }
         } else {
@@ -157,6 +158,74 @@ impl RecursiveDescent<Stmt> {
             block.push(RecursiveDescent::parse(lexer)?);
         }
         Ok(Stmt::Block(block))
+    }
+
+    fn parse_for(
+        lexer: &mut Peekable<impl Iterator<Item = Token>>,
+    ) -> Result<Stmt, <Self as Parser<Stmt>>::Error> {
+        if lexer.next_if(|t| t.kind == TokKind::LParen).is_none() {
+            println!("Expected '(' after 'for'");
+            return Err(());
+        }
+        // parse init
+        let init = if let Some(tok) = lexer
+            .next_if(|t| matches!(t.kind, TokKind::Let | TokKind::Semicolon))
+            .map(|t| t.kind)
+        {
+            match tok {
+                TokKind::Semicolon => None,
+                TokKind::Let => Some(Self::parse_decl(lexer)?),
+                _ => unreachable!(),
+            }
+        } else {
+            let expr = RecursiveDescent::parse(lexer)?;
+            if lexer.next_if(|t| t.kind == TokKind::Semicolon).is_none() {
+                println!("Expected ; after expression");
+                return Err(());
+            } else {
+                Some(Stmt::Expr(expr))
+            }
+        };
+        // parse cond
+        let cond = if lexer.peek().is_some_and(|t| t.kind == TokKind::Semicolon) {
+            Expr::Lit(Val::Boolean(true))
+        } else {
+            RecursiveDescent::parse(lexer)?
+        };
+        if lexer.next_if(|t| t.kind == TokKind::Semicolon).is_none() {
+            println!("Expected ; after loop condition");
+            return Err(());
+        };
+        // parse increment
+        let increment = if lexer.peek().is_some_and(|t| t.kind == TokKind::RParen) {
+            None
+        } else {
+            Some(RecursiveDescent::parse(lexer)?)
+        };
+        if lexer.next_if(|t| t.kind == TokKind::RParen).is_none() {
+            println!("Expected ')' after for clauses");
+            return Err(());
+        };
+        // parse body
+        let body = Self::parse_stmt(lexer)?;
+        // assemble loop
+        let body = if let Some(inc) = increment {
+            match body {
+                Stmt::Block(mut vec) => {
+                    vec.push(Stmt::Expr(inc));
+                    Stmt::Block(vec)
+                }
+                stmt => Stmt::Block(vec![stmt, Stmt::Expr(inc)]),
+            }
+        } else {
+            body
+        };
+        let desugared_loop = Stmt::While(cond, Box::new(body));
+        Ok(if let Some(init) = init {
+            Stmt::Block(vec![init, desugared_loop])
+        } else {
+            desugared_loop
+        })
     }
 }
 
