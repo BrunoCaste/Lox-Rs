@@ -23,6 +23,7 @@ impl std::fmt::Display for Val {
 pub enum Expr {
     // A variant for grouping is not necessary,
     // as long as the parser handles `Paren`s correctly
+    Asgn(String, Box<Expr>),
     And(Box<Expr>, Box<Expr>),
     Or(Box<Expr>, Box<Expr>),
     Eq(Box<Expr>, Box<Expr>),

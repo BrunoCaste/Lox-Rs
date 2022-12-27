@@ -75,7 +75,7 @@ impl RecursiveDescent<Stmt> {
                 loc: _,
             }) => i,
             Some(Token { kind, loc: _ }) => {
-                println!("Expected identifier, found {:?}", kind);
+                println!("Expected identifier, found {kind:?}");
                 return Err(());
             }
             None => {
@@ -103,11 +103,29 @@ impl Parser<Expr> for RecursiveDescent<Expr> {
     type Error = ();
 
     fn parse(lexer: &mut Peekable<impl Iterator<Item = Token>>) -> Result<Expr, Self::Error> {
-        Self::parse_log(lexer)
+        Self::parse_asgn(lexer)
     }
 }
 
 impl RecursiveDescent<Expr> {
+    fn parse_asgn(
+        lexer: &mut Peekable<impl Iterator<Item = Token>>,
+    ) -> Result<Expr, CompilationError> {
+        let target = Self::parse_log(lexer)?;
+
+        if lexer.next_if(|t| t.kind == TokKind::Equal).is_some() {
+            if let Expr::Var(i) = target {
+                let value = Self::parse_asgn(lexer)?;
+                Ok(Expr::Asgn(i, Box::new(value)))
+            } else {
+                println!("Invalid asignment target");
+                Err(())
+            }
+        } else {
+            Ok(target)
+        }
+    }
+
     fn parse_log(
         lexer: &mut Peekable<impl Iterator<Item = Token>>,
     ) -> Result<Expr, CompilationError> {
@@ -239,7 +257,7 @@ impl RecursiveDescent<Expr> {
                     }
                 }
                 x => {
-                    println!("Unexpected Token: {:?}", x);
+                    println!("Unexpected Token: {x:?}");
                     Err(())
                 }
             },
@@ -255,14 +273,14 @@ mod test {
 
     #[test]
     fn trailing_chars() {
-        let mut l = Lexer::new("6 + 3 + 8 ;".chars()).peekable();
+        let mut l = Lexer::new("6 + hello + 8 ;".chars()).peekable();
         let _: Expr = RecursiveDescent::parse(&mut l).unwrap();
 
         assert_ne!(l.next(), None);
     }
 
     #[test]
-    fn asoc() {
+    fn left_asoc() {
         use Expr::*;
 
         let l = Lexer::new("6 + 3 + 8".chars());
@@ -276,6 +294,22 @@ mod test {
                     Box::new(Lit(Val::Number(3.0))),
                 )),
                 Box::new(Lit(Val::Number(8.0))),
+            ))
+        );
+    }
+
+    #[test]
+    fn right_asoc() {
+        use Expr::*;
+
+        let l = Lexer::new("a = b = 3".chars());
+        let e = RecursiveDescent::parse(&mut l.peekable());
+
+        assert_eq!(
+            e,
+            Ok(Asgn(
+                "a".to_string(),
+                Box::new(Asgn("b".to_string(), Box::new(Lit(Val::Number(3.0))),)),
             ))
         );
     }
@@ -303,23 +337,26 @@ mod test {
     fn prec_increasing() {
         use Expr::*;
 
-        let l = Lexer::new("true and 0 != 2 + 6 / -!false".chars());
+        let l = Lexer::new("x = true and 0 != 2 + 6 / -!false".chars());
         let e = RecursiveDescent::parse(&mut l.peekable());
 
         assert_eq!(
             e,
-            Ok(And(
-                Box::new(Lit(Val::Boolean(true))),
-                Box::new(Ne(
-                    Box::new(Lit(Val::Number(0.0))),
-                    Box::new(Add(
-                        Box::new(Lit(Val::Number(2.0))),
-                        Box::new(Div(
-                            Box::new(Lit(Val::Number(6.0))),
-                            Box::new(Opp(Box::new(Not(Box::new(Lit(Val::Boolean(false))))))),
+            Ok(Asgn(
+                "x".to_string(),
+                Box::new(And(
+                    Box::new(Lit(Val::Boolean(true))),
+                    Box::new(Ne(
+                        Box::new(Lit(Val::Number(0.0))),
+                        Box::new(Add(
+                            Box::new(Lit(Val::Number(2.0))),
+                            Box::new(Div(
+                                Box::new(Lit(Val::Number(6.0))),
+                                Box::new(Opp(Box::new(Not(Box::new(Lit(Val::Boolean(false))))))),
+                            )),
                         )),
                     )),
-                )),
+                ))
             ))
         );
     }
@@ -354,13 +391,20 @@ mod test {
         let l = Lexer::new("2 + - 6 / ".chars());
         let e = RecursiveDescent::<Expr>::parse(&mut l.peekable());
 
-        assert_eq!(e, Err(()));
+        assert!(e.is_err());
     }
 
     #[test]
     fn unclosed_paren() {
         let l = Lexer::new("2 + - (6 / 4".chars());
         let e = RecursiveDescent::<Expr>::parse(&mut l.peekable());
-        assert_eq!(e, Err(()));
+        assert!(e.is_err());
+    }
+
+    #[test]
+    fn asgn_target_error() {
+        let l = Lexer::new("6 = 3 + 8".chars());
+        let e = RecursiveDescent::<Expr>::parse(&mut l.peekable());
+        assert!(e.is_err());
     }
 }
