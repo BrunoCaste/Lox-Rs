@@ -13,29 +13,54 @@ impl Prog {
     }
 }
 
-pub struct Scope<'a> {
-    values: HashMap<String, Val>,
-    fallback: Option<&'a mut Scope<'a>>,
+pub struct Scope {
+    environs: Vec<HashMap<String, Val>>,
 }
 
-impl<'a> Scope<'a> {
-    pub fn new(fallback: Option<&'a mut Self>) -> Self {
+impl Scope {
+    pub fn new() -> Self {
         Self {
-            values: HashMap::new(),
-            fallback,
+            environs: vec![HashMap::new()],
         }
-    }
-    pub fn def(&mut self, name: &String, val: Val) {
-        self.values.insert(name.to_string(), val);
     }
 
-    pub fn get(&self, name: &String) -> Result<Val, ()> {
-        if let Some(val) = self.values.get(name) {
-            Ok(val.clone())
-        } else {
-            self.fallback
-                .as_ref()
-                .map_or_else(|| Err(()), |f| f.get(name))
-        }
+    pub fn add_inner(&mut self) {
+        self.environs.push(HashMap::new());
+    }
+
+    pub fn exit_inner(&mut self) {
+        self.environs.pop().unwrap();
+    }
+
+    pub fn def(&mut self, name: &str, val: Val) {
+        self.environs
+            .last_mut()
+            .unwrap()
+            .insert(name.to_string(), val);
+    }
+
+    pub fn get(&self, name: &str) -> Result<Val, ()> {
+        let Some(val) = self
+            .environs
+            .iter()
+            .rev()
+            .find_map(|env| env.get(name)) else {
+                    println!("Undefined variable: {name}" );
+                    return Err(());
+        };
+        Ok(val.clone())
+    }
+
+    pub fn asgn(&mut self, name: &str, new: Val) -> Result<(), ()> {
+        let Some(old) = self
+            .environs
+            .iter_mut()
+            .rev()
+            .find_map(|env| env.get_mut(name)) else {
+                    println!("Undefined variable: {name}");
+                    return Err(());
+        };
+        *old = new;
+        Ok(())
     }
 }

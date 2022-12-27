@@ -43,7 +43,7 @@ pub enum Expr {
 }
 
 macro_rules! try_numeric {
-    ($sc:ident, $lhs:ident $op:tt $rhs:ident => $var:tt) => {{
+    ($sc:expr, $lhs:ident $op:tt $rhs:ident => $var:tt) => {{
         let (x, y) = ($lhs.eval($sc)?, $rhs.eval($sc)?);
         match (&x, &y) {
             (Val::Number(x), Val::Number(y)) => Ok(Val::$var(x $op y)),
@@ -57,6 +57,11 @@ impl Expr {
     pub fn eval(&self, scope: &mut Scope) -> Result<Val, ()> {
         use Expr::*;
         match self {
+            Asgn(var, expr) => {
+                let val = expr.eval(scope)?;
+                scope.asgn(var, val.clone())?;
+                Ok(val)
+            }
             And(lhs, rhs) => match lhs.eval(scope)? {
                 b @ (Val::Nil | Val::Boolean(false)) => Ok(b),
                 _ => rhs.eval(scope),
@@ -82,9 +87,9 @@ impl Expr {
                 (Val::String(s), Val::String(t)) => Ok(Val::String(s + &t)),
                 _ => Err(()),
             },
-            Sub(lhs, rhs) => try_numeric!(scope,lhs - rhs => Number),
-            Mul(lhs, rhs) => try_numeric!(scope,lhs * rhs => Number),
-            Div(lhs, rhs) => try_numeric!(scope,lhs / rhs => Number),
+            Sub(lhs, rhs) => try_numeric!(scope, lhs - rhs => Number),
+            Mul(lhs, rhs) => try_numeric!(scope, lhs * rhs => Number),
+            Div(lhs, rhs) => try_numeric!(scope, lhs / rhs => Number),
             Not(arg) => match arg.eval(scope)? {
                 Val::Nil | Val::Boolean(false) => Ok(Val::Boolean(true)),
                 _ => Ok(Val::Boolean(true)),
@@ -98,4 +103,3 @@ impl Expr {
         }
     }
 }
-

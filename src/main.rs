@@ -30,14 +30,14 @@ fn run_file(path: &str) -> ExitCode {
             return ExitCode::from(74);
         }
     };
-    run(&src, &mut Scope::new(None)).unwrap_or(ExitCode::from(0))
+    run(&src, &mut Scope::new()).unwrap_or(ExitCode::from(0))
 }
 
 fn repl() -> ExitCode {
     let stdin = stdin();
     let mut input = String::with_capacity(64);
 
-    let mut env = Scope::new(None);
+    let mut env = Scope::new();
 
     loop {
         input.clear();
