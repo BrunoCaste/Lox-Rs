@@ -30,6 +30,7 @@ pub enum Expr {
     // A variant for grouping is not necessary,
     // as long as the parser handles `Paren`s correctly
     Asgn(String, Box<Expr>),
+    Call(Box<Expr>, Vec<Expr>),
     And(Box<Expr>, Box<Expr>),
     Or(Box<Expr>, Box<Expr>),
     Eq(Box<Expr>, Box<Expr>),
@@ -68,6 +69,7 @@ impl Expr {
                 scope.asgn(var, val.clone())?;
                 Ok(val)
             }
+            Call(_callee, _args) => todo!(),
             And(lhs, rhs) => match lhs.eval(scope)? {
                 b @ (Val::Nil | Val::Boolean(false)) => Ok(b),
                 _ => rhs.eval(scope),

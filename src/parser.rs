@@ -342,8 +342,40 @@ impl RecursiveDescent<Expr> {
                 _ => unreachable!(),
             })
         } else {
-            Self::parse_primary(lexer)
+            Self::parse_call(lexer)
         }
+    }
+
+    fn parse_call(
+        lexer: &mut Peekable<impl Iterator<Item = Token>>,
+    ) -> Result<Expr, CompilationError> {
+        let mut callee = Self::parse_primary(lexer)?;
+        while lexer.next_if(|t| matches!(t.kind, LParen)).is_some() {
+            let args = Self::parse_args(lexer)?;
+            callee = Expr::Call(Box::new(callee), args);
+            if lexer.next_if(|t| matches!(t.kind, RParen)).is_none() {
+                println!("Unmatched parenthesis");
+                return Err(());
+            }
+        }
+        Ok(callee)
+    }
+
+    fn parse_args(
+        lexer: &mut Peekable<impl Iterator<Item = Token>>,
+    ) -> Result<Vec<Expr>, CompilationError> {
+        let mut args = Vec::new();
+        if lexer.peek().is_some_and(|t| t.kind != RParen) {
+            args.push(Self::parse(lexer)?);
+            while lexer.next_if(|t| t.kind == Comma).is_some() {
+                if args.len() > 255 {
+                    println!("argument count (255) exceeded");
+                    return Err(());
+                }
+                args.push(Self::parse(lexer)?);
+            }
+        }
+        Ok(args)
     }
 
     fn parse_primary(
