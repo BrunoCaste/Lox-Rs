@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{expr::Val, stmt::Stmt};
+use crate::{stmt::Stmt, val::Val};
 
 pub struct Prog(pub Vec<Stmt>);
 

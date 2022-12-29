@@ -1,11 +1,6 @@
 use std::iter::Peekable;
 
-use crate::{
-    expr::{Expr, Val},
-    lexer::TokKind::*,
-    prog::Prog,
-    stmt::Stmt,
-};
+use crate::{expr::Expr, lexer::TokKind::*, prog::Prog, stmt::Stmt, val::Val};
 
 pub use crate::lexer::Token;
 pub trait Parser<Output> {
@@ -225,6 +220,20 @@ impl RecursiveDescent<Stmt> {
         })
     }
 }
+
+/*
+* expr    -> asgn
+* asgn    -> IDENT "=" asgn | logic
+* logic   -> cmp | logic ("and" | "or") cmp
+* cmp     -> term | cmp ("==" | "!=" | "<" | "<=" | ">" | ">=") term
+* term    -> factor | term ("+" | "-") factor
+* factor  -> unary | factor ("*" | "/") unary
+* unary   -> ("!" | "-") unary | call
+* call    -> (call | primary) "(" args ")"
+* primary -> TRUE | FALSE | NIL | NUMBER | STRING | IDENT | "(" expr ")"
+*
+* args -> expr ("," expr)* | EPSILON
+*/
 
 impl Parser<Expr> for RecursiveDescent<Expr> {
     type Error = ();

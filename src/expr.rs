@@ -1,29 +1,5 @@
 use crate::prog::Scope;
-
-#[derive(PartialEq, Debug, Clone)]
-pub enum Val {
-    Number(f64),
-    Boolean(bool),
-    String(String),
-    Nil,
-}
-
-impl std::fmt::Display for Val {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            Self::Number(x) => write!(f, "{x}"),
-            Self::Boolean(b) => write!(f, "{b}"),
-            Self::String(s) => write!(f, "{s}"),
-            Self::Nil => write!(f, "nil"),
-        }
-    }
-}
-
-impl From<Val> for bool {
-    fn from(value: Val) -> Self {
-        !matches!(value, Val::Nil | Val::Boolean(false))
-    }
-}
+use crate::val::Val;
 
 #[derive(PartialEq, Debug)]
 pub enum Expr {

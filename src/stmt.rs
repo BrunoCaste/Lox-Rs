@@ -1,7 +1,4 @@
-use crate::{
-    expr::{Expr, Val},
-    prog::Scope,
-};
+use crate::{expr::Expr, prog::Scope, val::Val};
 
 #[derive(PartialEq, Debug)]
 pub enum Stmt {

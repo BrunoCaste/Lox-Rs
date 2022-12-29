@@ -16,6 +16,7 @@ mod lexer;
 mod parser;
 mod prog;
 mod stmt;
+mod val;
 
 fn usage(prog: String) -> ExitCode {
     eprintln!("Usage: {prog} [script]");
