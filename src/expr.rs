@@ -68,7 +68,7 @@ impl Expr {
             Le(lhs, rhs) => try_numeric!(scope, lhs <= rhs => Boolean),
             Add(lhs, rhs) => match (lhs.eval(scope)?, rhs.eval(scope)?) {
                 (Val::Number(x), Val::Number(y)) => Ok(Val::Number(x + y)),
-                (Val::String(s), Val::String(t)) => Ok(Val::String(format!("{s}{t}"))),
+                (Val::String(s), Val::String(t)) => Ok(Val::String(format!("{s}{t}").into())),
                 _ => Err(()),
             },
             Sub(lhs, rhs) => try_numeric!(scope, lhs - rhs => Number),

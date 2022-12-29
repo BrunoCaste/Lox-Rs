@@ -1,8 +1,9 @@
+use std::rc::Rc;
 #[derive(PartialEq, Debug, Clone)]
 pub enum Val {
     Number(f64),
     Boolean(bool),
-    String(String),
+    String(Rc<str>),
     Nil,
 }
 

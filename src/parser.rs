@@ -400,7 +400,7 @@ impl RecursiveDescent<Expr> {
                 True => Ok(Expr::Lit(Val::Boolean(true))),
                 False => Ok(Expr::Lit(Val::Boolean(false))),
                 Number(x) => Ok(Expr::Lit(Val::Number(x))),
-                String(s) => Ok(Expr::Lit(Val::String(s))),
+                String(s) => Ok(Expr::Lit(Val::String(s.into()))),
                 Ident(s) => Ok(Expr::Var(s)),
                 LParen => {
                     let inner = Self::parse_log(lexer)?;

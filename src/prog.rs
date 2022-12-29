@@ -7,7 +7,7 @@ pub struct Prog(pub Vec<Stmt>);
 impl Prog {
     pub fn exec(&self, scope: &mut Scope) -> Result<(), ()> {
         for s in &self.0 {
-            s.exec(scope)?
+            s.exec(scope)?;
         }
         Ok(())
     }

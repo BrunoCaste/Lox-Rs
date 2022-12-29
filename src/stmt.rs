@@ -11,7 +11,7 @@ pub enum Stmt {
 }
 
 impl Stmt {
-    pub fn exec(&self, scope: &mut Scope) -> Result<(), ()> {
+    pub fn exec(&self, scope: &mut Scope) -> Result<Val, ()> {
         match self {
             Self::Block(stmts) => {
                 // let inner = Scope::from(scope);
@@ -23,13 +23,13 @@ impl Stmt {
                     })?;
                 }
                 scope.exit_inner();
-                Ok(())
+                Ok(Val::Nil)
             }
-            Self::Expr(e) => e.eval(scope).map(|_| ()),
+            Self::Expr(e) => e.eval(scope).map(|_| Val::Nil),
             Self::Print(e) => {
                 let e = e.eval(scope)?;
                 println!("{e}");
-                Ok(())
+                Ok(Val::Nil)
             }
             Self::Decl(name, expr) => {
                 let init = if let Some(e) = expr {
@@ -38,21 +38,21 @@ impl Stmt {
                     Val::Nil
                 };
                 scope.def(name, init);
-                Ok(())
+                Ok(Val::Nil)
             }
-            Self::If(cond, then_stmt, else_stmt) => {
+            Self::If(cond, then_branch, else_branch) => {
                 if cond.eval(scope)?.into() {
-                    then_stmt.exec(scope)?
-                } else if let Some(else_stmt) = else_stmt {
-                    else_stmt.exec(scope)?
+                    then_branch.exec(scope)?;
+                } else if let Some(else_branch) = else_branch {
+                    else_branch.exec(scope)?;
                 }
-                Ok(())
+                Ok(Val::Nil)
             }
             Self::While(cond, body) => {
                 while cond.eval(scope)?.into() {
-                    body.exec(scope)?
+                    body.exec(scope)?;
                 }
-                Ok(())
+                Ok(Val::Nil)
             }
         }
     }
