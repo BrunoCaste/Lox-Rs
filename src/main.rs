@@ -5,6 +5,7 @@ use std::{
     fs::read_to_string,
     io::{stdin, stdout, Write},
     process::ExitCode,
+    rc::Rc,
 };
 
 use lexer::Lexer;
@@ -31,14 +32,14 @@ fn run_file(path: &str) -> ExitCode {
             return ExitCode::from(74);
         }
     };
-    run(&src, &mut Scope::new()).unwrap_or(ExitCode::from(0))
+    run(&src, Scope::new()).unwrap_or(ExitCode::from(0))
 }
 
 fn repl() -> ExitCode {
     let stdin = stdin();
     let mut input = String::with_capacity(64);
 
-    let mut env = Scope::new();
+    let env = Scope::new();
 
     loop {
         input.clear();
@@ -48,13 +49,13 @@ fn repl() -> ExitCode {
             .read_line(&mut input)
             .expect("Error reading from stdin");
 
-        if let Some(e) = run(&input, &mut env) {
+        if let Some(e) = run(&input, Rc::clone(&env)) {
             return e;
         }
     }
 }
 
-fn run(src: &str, env: &mut Scope) -> Option<ExitCode> {
+fn run(src: &str, env: Rc<Scope>) -> Option<ExitCode> {
     let mut lexer = Lexer::new(src.chars()).peekable();
     let prog = match RecursiveDescent::<prog::Prog>::parse(&mut lexer) {
         Ok(p) => p,

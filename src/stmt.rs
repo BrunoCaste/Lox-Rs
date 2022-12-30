@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use crate::{expr::Expr, prog::Scope, val::Val};
 
 #[derive(PartialEq, Debug)]
@@ -11,18 +13,14 @@ pub enum Stmt {
 }
 
 impl Stmt {
-    pub fn exec(&self, scope: &mut Scope) -> Result<Val, ()> {
+    pub fn exec(&self, scope: Rc<Scope>) -> Result<Val, ()> {
         match self {
             Self::Block(stmts) => {
                 // let inner = Scope::from(scope);
-                scope.add_inner();
+                let inner = Scope::inner(&scope);
                 for s in stmts {
-                    s.exec(scope).map_err(|e| {
-                        scope.exit_inner();
-                        e
-                    })?;
+                    s.exec(Rc::clone(&inner))?;
                 }
-                scope.exit_inner();
                 Ok(Val::Nil)
             }
             Self::Expr(e) => e.eval(scope).map(|_| Val::Nil),
@@ -33,7 +31,7 @@ impl Stmt {
             }
             Self::Decl(name, expr) => {
                 let init = if let Some(e) = expr {
-                    e.eval(scope)?
+                    e.eval(Rc::clone(&scope))?
                 } else {
                     Val::Nil
                 };
@@ -41,7 +39,7 @@ impl Stmt {
                 Ok(Val::Nil)
             }
             Self::If(cond, then_branch, else_branch) => {
-                if cond.eval(scope)?.into() {
+                if cond.eval(Rc::clone(&scope))?.into() {
                     then_branch.exec(scope)?;
                 } else if let Some(else_branch) = else_branch {
                     else_branch.exec(scope)?;
@@ -49,8 +47,8 @@ impl Stmt {
                 Ok(Val::Nil)
             }
             Self::While(cond, body) => {
-                while cond.eval(scope)?.into() {
-                    body.exec(scope)?;
+                while cond.eval(Rc::clone(&scope))?.into() {
+                    body.exec(Rc::clone(&scope))?;
                 }
                 Ok(Val::Nil)
             }

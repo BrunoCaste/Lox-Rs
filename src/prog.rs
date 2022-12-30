@@ -1,66 +1,62 @@
-use std::collections::HashMap;
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{stmt::Stmt, val::Val};
 
 pub struct Prog(pub Vec<Stmt>);
 
 impl Prog {
-    pub fn exec(&self, scope: &mut Scope) -> Result<(), ()> {
+    pub fn exec(&self, scope: Rc<Scope>) -> Result<(), ()> {
         for s in &self.0 {
-            s.exec(scope)?;
+            s.exec(Rc::clone(&scope))?;
         }
         Ok(())
     }
 }
 
 pub struct Scope {
-    environs: Vec<HashMap<String, Val>>,
+    values: RefCell<HashMap<String, Val>>,
+    outer: Option<Rc<Self>>,
 }
 
 impl Scope {
-    pub fn new() -> Self {
-        Self {
-            environs: vec![HashMap::new()],
-        }
+    pub fn new() -> Rc<Self> {
+        Rc::new(Self {
+            values: RefCell::new(HashMap::new()),
+            outer: None,
+        })
     }
 
-    pub fn add_inner(&mut self) {
-        self.environs.push(HashMap::new());
+    pub fn inner(outer: &Rc<Self>) -> Rc<Self> {
+        Rc::new(Self {
+            values: RefCell::new(HashMap::new()),
+            outer: Some(Rc::clone(outer)),
+        })
     }
 
-    pub fn exit_inner(&mut self) {
-        self.environs.pop().unwrap();
-    }
-
-    pub fn def(&mut self, name: &str, val: Val) {
-        self.environs
-            .last_mut()
-            .unwrap()
-            .insert(name.to_string(), val);
+    pub fn def(&self, name: &str, val: Val) {
+        self.values.borrow_mut().insert(name.to_string(), val);
     }
 
     pub fn get(&self, name: &str) -> Result<Val, ()> {
-        let Some(val) = self
-            .environs
-            .iter()
-            .rev()
-            .find_map(|env| env.get(name)) else {
-                    println!("Undefined variable: {name}" );
-                    return Err(());
-        };
-        Ok(val.clone())
+        if let Some(val) = self.values.borrow().get(name) {
+            Ok(val.clone())
+        } else {
+            self.outer.as_ref().map_or_else(
+                || {
+                    println!("Undefined variable '{name}'");
+                    Err(())
+                },
+                |o| o.get(name),
+            )
+        }
     }
 
-    pub fn asgn(&mut self, name: &str, new: Val) -> Result<(), ()> {
-        let Some(old) = self
-            .environs
-            .iter_mut()
-            .rev()
-            .find_map(|env| env.get_mut(name)) else {
-                    println!("Undefined variable: {name}");
-                    return Err(());
-        };
-        *old = new;
-        Ok(())
+    pub fn asgn(&self, name: &str, new: Val) -> Result<(), ()> {
+        if let Some(val) = self.values.borrow_mut().get_mut(name) {
+            *val = new;
+            Ok(())
+        } else {
+            self.outer.as_ref().map_or(Err(()), |o| o.asgn(name, new))
+        }
     }
 }
