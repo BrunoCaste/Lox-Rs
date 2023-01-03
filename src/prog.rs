@@ -27,6 +27,13 @@ impl Scope {
         })
     }
 
+    pub fn from_globals(globals: HashMap<String, Val>) -> Rc<Self> {
+        Rc::new(Self {
+            values: RefCell::new(globals),
+            outer: None,
+        })
+    }
+
     pub fn inner(outer: &Rc<Self>) -> Rc<Self> {
         Rc::new(Self {
             values: RefCell::new(HashMap::new()),

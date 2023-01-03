@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use crate::prog::Scope;
-use crate::val::Val;
+use crate::val::{Callable, Val};
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Expr {
@@ -47,7 +47,17 @@ impl Expr {
                 scope.asgn(var, val.clone())?;
                 Ok(val)
             }
-            Call(_callee, _args) => todo!(),
+            Call(callee, args) => match callee.eval(Rc::clone(&scope))? {
+                Val::Func(f) => f.call(
+                    args.iter()
+                        .map(|a| a.eval(Rc::clone(&scope)))
+                        .collect::<Result<Vec<_>, _>>()?,
+                ),
+                _ => {
+                    println!("Type is not callable");
+                    Err(())
+                }
+            },
             And(lhs, rhs) => match lhs.eval(Rc::clone(&scope))? {
                 b @ (Val::Nil | Val::Boolean(false)) => Ok(b),
                 _ => rhs.eval(scope),
