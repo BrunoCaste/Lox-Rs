@@ -13,6 +13,7 @@ impl Prog {
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub struct Scope {
     values: RefCell<HashMap<String, Val>>,
     outer: Option<Rc<Self>>,

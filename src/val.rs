@@ -1,6 +1,7 @@
 use std::rc::Rc;
 #[derive(PartialEq, Debug, Clone)]
 pub enum Val {
+    NoVal,
     Number(f64),
     Boolean(bool),
     String(Rc<str>),
@@ -15,6 +16,7 @@ impl std::fmt::Display for Val {
             Boolean(b) => write!(f, "{b}"),
             String(s) => write!(f, "{s}"),
             Nil => write!(f, "nil"),
+            NoVal => write!(f, "???"),
         }
     }
 }

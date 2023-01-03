@@ -72,7 +72,7 @@ pub enum TokKind {
     LessEqual,
     GreaterEqual,
     // Literals
-    String(String),
+    Str(String),
     Number(f64),
 
     Ident(String),
@@ -170,7 +170,7 @@ where
                 self.buf.clear();
                 self.buf_while(|c| c != '"');
                 if self.cursor.next_if(|c| c == '"').is_some() {
-                    String(self.buf.to_string())
+                    Str(self.buf.to_string())
                 } else {
                     Unterminated
                 }
@@ -265,9 +265,9 @@ mod test {
     #[test]
     fn strings() {
         let mut l = Lexer::new(r#"  "string"  ""  "msg" "#.chars());
-        assert_eq!(l.next(), Some(tok!(String("string".to_string()), 0, 2)));
-        assert_eq!(l.next(), Some(tok!(String("".to_string()), 0, 12)));
-        assert_eq!(l.next(), Some(tok!(String("msg".to_string()), 0, 16)));
+        assert_eq!(l.next(), Some(tok!(Str("string".to_string()), 0, 2)));
+        assert_eq!(l.next(), Some(tok!(Str("".to_string()), 0, 12)));
+        assert_eq!(l.next(), Some(tok!(Str("msg".to_string()), 0, 16)));
         assert_eq!(l.next(), None)
     }
 

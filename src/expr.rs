@@ -3,7 +3,7 @@ use std::rc::Rc;
 use crate::prog::Scope;
 use crate::val::Val;
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum Expr {
     // A variant for grouping is not necessary,
     // as long as the parser handles `Paren`s correctly

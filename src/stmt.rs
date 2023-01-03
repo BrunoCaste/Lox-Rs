@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use crate::{expr::Expr, prog::Scope, val::Val};
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum Stmt {
     Block(Vec<Stmt>),
     Expr(Expr),
@@ -19,15 +19,18 @@ impl Stmt {
                 // let inner = Scope::from(scope);
                 let inner = Scope::inner(&scope);
                 for s in stmts {
-                    s.exec(Rc::clone(&inner))?;
+                    let val = s.exec(Rc::clone(&inner))?;
+                    if val != Val::NoVal {
+                        return Ok(val);
+                    }
                 }
-                Ok(Val::Nil)
+                Ok(Val::NoVal)
             }
-            Self::Expr(e) => e.eval(scope).map(|_| Val::Nil),
+            Self::Expr(e) => e.eval(scope).map(|_| Val::NoVal),
             Self::Print(e) => {
                 let e = e.eval(scope)?;
                 println!("{e}");
-                Ok(Val::Nil)
+                Ok(Val::NoVal)
             }
             Self::Decl(name, expr) => {
                 let init = if let Some(e) = expr {
@@ -36,21 +39,28 @@ impl Stmt {
                     Val::Nil
                 };
                 scope.def(name, init);
-                Ok(Val::Nil)
+                Ok(Val::NoVal)
             }
             Self::If(cond, then_branch, else_branch) => {
-                if cond.eval(Rc::clone(&scope))?.into() {
-                    then_branch.exec(scope)?;
+                let ret = if cond.eval(Rc::clone(&scope))?.into() {
+                    then_branch.exec(scope)?
                 } else if let Some(else_branch) = else_branch {
-                    else_branch.exec(scope)?;
-                }
-                Ok(Val::Nil)
+                    else_branch.exec(scope)?
+                } else {
+                    Val::NoVal
+                };
+                Ok(ret)
             }
             Self::While(cond, body) => {
+                let mut ret = Val::NoVal;
                 while cond.eval(Rc::clone(&scope))?.into() {
-                    body.exec(Rc::clone(&scope))?;
+                    ret = body.exec(Rc::clone(&scope))?;
+                    if ret != Val::NoVal {
+                        break;
+                    }
                 }
-                Ok(Val::Nil)
+                Ok(ret)
+            }
             }
         }
     }

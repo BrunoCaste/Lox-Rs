@@ -160,13 +160,10 @@ impl RecursiveDescent<Stmt> {
             return Err(());
         }
         // parse init
-        let init = if let Some(tok) = lexer
-            .next_if(|t| matches!(t.kind, Let | Semicolon))
-            .map(|t| t.kind)
-        {
-            match tok {
+        let init = if let Some(t) = lexer.next_if(|t| matches!(t.kind, Let | Semicolon)) {
+            match t.kind {
                 Semicolon => None,
-                Let => Some(Self::parse_decl(lexer)?),
+                Let => Some(Self::parse_var_decl(lexer)?),
                 _ => unreachable!(),
             }
         } else {
@@ -174,9 +171,8 @@ impl RecursiveDescent<Stmt> {
             if lexer.next_if(|t| t.kind == Semicolon).is_none() {
                 println!("Expected ; after expression");
                 return Err(());
-            } else {
-                Some(Stmt::Expr(expr))
             }
+            Some(Stmt::Expr(expr))
         };
         // parse cond
         let cond = if lexer.peek().is_some_and(|t| t.kind == Semicolon) {
@@ -400,7 +396,7 @@ impl RecursiveDescent<Expr> {
                 True => Ok(Expr::Lit(Val::Boolean(true))),
                 False => Ok(Expr::Lit(Val::Boolean(false))),
                 Number(x) => Ok(Expr::Lit(Val::Number(x))),
-                String(s) => Ok(Expr::Lit(Val::String(s.into()))),
+                Str(s) => Ok(Expr::Lit(Val::String(s.into()))),
                 Ident(s) => Ok(Expr::Var(s)),
                 LParen => {
                     let inner = Self::parse_log(lexer)?;
