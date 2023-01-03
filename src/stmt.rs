@@ -10,6 +10,8 @@ pub enum Stmt {
     Decl(String, Option<Expr>),
     If(Expr, Box<Stmt>, Option<Box<Stmt>>),
     While(Expr, Box<Stmt>),
+    Func(String, Vec<String>, Box<Stmt>),
+    Return(Option<Expr>),
 }
 
 impl Stmt {
@@ -61,7 +63,7 @@ impl Stmt {
                 }
                 Ok(ret)
             }
-            }
+            _ => todo!(),
         }
     }
 }
