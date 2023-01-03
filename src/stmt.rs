@@ -1,6 +1,10 @@
 use std::rc::Rc;
 
-use crate::{expr::Expr, prog::Scope, val::Val};
+use crate::{
+    expr::Expr,
+    prog::Scope,
+    val::{Function, Val},
+};
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Stmt {
@@ -63,7 +67,12 @@ impl Stmt {
                 }
                 Ok(ret)
             }
-            _ => todo!(),
+            f @ Self::Func(name, ..) => {
+                let f = Val::Func(Function::UserDef(Rc::new(f.clone()), Rc::clone(&scope)));
+                scope.def(name, f);
+                Ok(Val::NoVal)
+            }
+            Self::Return(ret) => ret.as_ref().map_or(Ok(Val::Nil), |e| e.eval(scope)),
         }
     }
 }
