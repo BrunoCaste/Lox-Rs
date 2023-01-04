@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::prog::Scope;
+use crate::scope::Scope;
 use crate::val::{Callable, Val};
 
 #[derive(PartialEq, Debug, Clone)]

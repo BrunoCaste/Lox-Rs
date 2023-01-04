@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::{prog::Scope, stmt::Stmt};
+use crate::{scope::Scope, stmt::Stmt};
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Val {

@@ -10,8 +10,8 @@ use std::{
 
 use lexer::Lexer;
 use parser::{Parser, RecursiveDescent};
-use prog::Scope;
 use resolver::Resolver;
+use scope::Scope;
 
 mod expr;
 mod globals;
@@ -19,6 +19,7 @@ mod lexer;
 mod parser;
 mod prog;
 mod resolver;
+mod scope;
 mod stmt;
 mod val;
 

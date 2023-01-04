@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use crate::{
     expr::Expr,
-    prog::Scope,
+    scope::Scope,
     val::{Function, Val},
 };
 
