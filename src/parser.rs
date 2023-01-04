@@ -1,6 +1,12 @@
 use std::iter::Peekable;
 
-use crate::{expr::Expr, lexer::TokKind::*, prog::Prog, stmt::Stmt, val::Val};
+use crate::{
+    expr::{Expr, Variable},
+    lexer::TokKind::*,
+    prog::Prog,
+    stmt::Stmt,
+    val::Val,
+};
 
 pub use crate::lexer::Token;
 pub trait Parser<Output> {
@@ -323,9 +329,9 @@ impl RecursiveDescent<Expr> {
         let target = Self::parse_log(lexer)?;
 
         if lexer.next_if(|t| t.kind == Equal).is_some() {
-            if let Expr::Var(i) = target {
+            if let Expr::Var(var) = target {
                 let value = Self::parse_asgn(lexer)?;
-                Ok(Expr::Asgn(i, Box::new(value)))
+                Ok(Expr::Asgn(var, Box::new(value)))
             } else {
                 println!("Invalid asignment target");
                 Err(())
@@ -474,7 +480,7 @@ impl RecursiveDescent<Expr> {
                 False => Ok(Expr::Lit(Val::Boolean(false))),
                 Number(x) => Ok(Expr::Lit(Val::Number(x))),
                 Str(s) => Ok(Expr::Lit(Val::String(s.into()))),
-                Ident(s) => Ok(Expr::Var(s)),
+                Ident(s) => Ok(Expr::Var(Variable::new(s))),
                 LParen => {
                     let inner = Self::parse_log(lexer)?;
                     let closing = lexer.next();
@@ -537,8 +543,11 @@ mod test {
         assert_eq!(
             e,
             Ok(Asgn(
-                "a".to_string(),
-                Box::new(Asgn("b".to_string(), Box::new(Lit(Val::Number(3.0))),)),
+                Variable::new("a".to_string()),
+                Box::new(Asgn(
+                    Variable::new("b".to_string()),
+                    Box::new(Lit(Val::Number(3.0))),
+                )),
             ))
         );
     }
@@ -553,7 +562,7 @@ mod test {
         assert_eq!(
             e,
             Ok(Add(
-                Box::new(Var("x".to_string())),
+                Box::new(Var(Variable::new("x".to_string()))),
                 Box::new(Add(
                     Box::new(Lit(Val::Number(3.0))),
                     Box::new(Lit(Val::Number(8.0))),
@@ -572,7 +581,7 @@ mod test {
         assert_eq!(
             e,
             Ok(Asgn(
-                "x".to_string(),
+                Variable::new("x".to_string()),
                 Box::new(And(
                     Box::new(Lit(Val::Boolean(true))),
                     Box::new(Ne(

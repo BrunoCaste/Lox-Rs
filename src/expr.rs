@@ -7,7 +7,7 @@ use crate::val::{Callable, Val};
 pub enum Expr {
     // A variant for grouping is not necessary,
     // as long as the parser handles `Paren`s correctly
-    Asgn(String, Box<Expr>),
+    Asgn(Variable, Box<Expr>),
     Call(Box<Expr>, Vec<Expr>),
     And(Box<Expr>, Box<Expr>),
     Or(Box<Expr>, Box<Expr>),
@@ -24,7 +24,22 @@ pub enum Expr {
     Not(Box<Expr>),
     Opp(Box<Expr>),
     Lit(Val),
-    Var(String),
+    Var(Variable),
+}
+
+#[derive(PartialEq, Debug, Clone)]
+pub struct Variable {
+    pub name: Box<str>,
+    pub depth: isize,
+}
+
+impl Variable {
+    pub fn new(name: String) -> Self {
+        Self {
+            name: name.into_boxed_str(),
+            depth: -1,
+        }
+    }
 }
 
 macro_rules! try_numeric {
@@ -44,7 +59,7 @@ impl Expr {
         match self {
             Asgn(var, expr) => {
                 let val = expr.eval(Rc::clone(&scope))?;
-                scope.asgn(var, val.clone())?;
+                scope.asgn(&var.name, val.clone())?;
                 Ok(val)
             }
             Call(callee, args) => match callee.eval(Rc::clone(&scope))? {
@@ -95,7 +110,7 @@ impl Expr {
                 _ => Err(()),
             },
             Lit(v) => Ok(v.clone()),
-            Var(i) => scope.get(i),
+            Var(var) => scope.get(&var.name),
         }
     }
 }
