@@ -25,7 +25,7 @@ lazy_static! {
     ]);
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct Token {
     pub kind: TokKind,
     pub loc: Loc,

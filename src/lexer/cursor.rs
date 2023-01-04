@@ -1,6 +1,6 @@
 use std::iter::Peekable;
 
-#[derive(PartialEq, Debug, Clone, Copy)]
+#[derive(Default, PartialEq, Debug, Clone, Copy)]
 pub struct Loc {
     pub row: usize,
     pub col: usize,

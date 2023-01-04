@@ -1,28 +1,58 @@
 use std::iter::Peekable;
 
 use crate::{
+    error::ParserError,
     expr::{Expr, Variable},
-    lexer::TokKind::*,
+    lexer::{
+        Loc,
+        TokKind::{self, *},
+    },
     prog::Prog,
     stmt::Stmt,
     val::Val,
 };
 
 pub use crate::lexer::Token;
-pub trait Parser<Output> {
-    type Error;
 
-    fn parse(lexer: &mut Peekable<impl Iterator<Item = Token>>) -> Result<Output, Self::Error>;
+pub trait Parser<Output> {
+    fn parse(lexer: &mut Peekable<impl Iterator<Item = Token>>) -> Result<Output, ParserError>;
 }
 
-type CompilationError = ();
+fn consume(
+    lexer: &mut Peekable<impl Iterator<Item = Token>>,
+    expected: TokKind,
+) -> Result<Token, ParserError> {
+    if let Some(t) = lexer.next_if(|t| matches!(t.kind, Ident(_))) {
+        Ok(t)
+    } else {
+        Err(ParserError::Expected {
+            exp: expected,
+            fnd: lexer.peek().map(|t| t.clone()),
+        })
+    }
+}
+
+fn consume_ident(
+    lexer: &mut Peekable<impl Iterator<Item = Token>>,
+) -> Result<(String, Loc), ParserError> {
+    if let Some(Token {
+        kind: Ident(name),
+        loc,
+    }) = lexer.next_if(|t| matches!(t.kind, Ident(_)))
+    {
+        Ok((name, loc))
+    } else {
+        Err(ParserError::Expected {
+            exp: Ident(Default::default()),
+            fnd: lexer.peek().map(|t| t.clone()),
+        })
+    }
+}
 
 pub struct RecursiveDescent<T>(std::marker::PhantomData<T>);
 
 impl Parser<Prog> for RecursiveDescent<Prog> {
-    type Error = ();
-
-    fn parse(lexer: &mut Peekable<impl Iterator<Item = Token>>) -> Result<Prog, Self::Error> {
+    fn parse(lexer: &mut Peekable<impl Iterator<Item = Token>>) -> Result<Prog, ParserError> {
         let mut program = Prog::new();
 
         while lexer.peek().is_some() {
@@ -33,9 +63,7 @@ impl Parser<Prog> for RecursiveDescent<Prog> {
 }
 
 impl Parser<Stmt> for RecursiveDescent<Stmt> {
-    type Error = ();
-
-    fn parse(lexer: &mut Peekable<impl Iterator<Item = Token>>) -> Result<Stmt, Self::Error> {
+    fn parse(lexer: &mut Peekable<impl Iterator<Item = Token>>) -> Result<Stmt, ParserError> {
         match lexer
             .next_if(|t| matches!(t.kind, Let | Fn))
             .map(|t| t.kind)
@@ -52,32 +80,21 @@ impl Parser<Stmt> for RecursiveDescent<Stmt> {
 }
 
 impl RecursiveDescent<Stmt> {
-    fn parse_stmt(
-        lexer: &mut Peekable<impl Iterator<Item = Token>>,
-    ) -> Result<Stmt, <Self as Parser<Stmt>>::Error> {
+    fn parse_stmt(lexer: &mut Peekable<impl Iterator<Item = Token>>) -> Result<Stmt, ParserError> {
         let stmt = if let Some(tok) =
             lexer.next_if(|t| matches!(t.kind, LBrace | Print | If | While | For | Return))
         {
             match tok.kind {
                 LBrace => {
                     let block = Self::parse_block(lexer)?;
-                    if lexer.next_if(|t| t.kind == RBrace).is_none() {
-                        println!("Expected }} after block");
-                        return Err(());
-                    };
+                    consume(lexer, RBrace)?;
                     block
                 }
                 Print => Stmt::Print(RecursiveDescent::parse(lexer)?),
                 If => {
-                    if lexer.next_if(|t| t.kind == LParen).is_none() {
-                        println!("Expected '(' after 'if'");
-                        return Err(());
-                    }
+                    consume(lexer, LParen)?;
                     let cond = RecursiveDescent::parse(lexer)?;
-                    if lexer.next_if(|t| t.kind == RParen).is_none() {
-                        println!("Expected ')' after condition");
-                        return Err(());
-                    }
+                    consume(lexer, RParen)?;
                     let body = Self::parse_stmt(lexer)?;
                     let otherwise = if lexer.next_if(|t| t.kind == Else).is_some() {
                         Some(Self::parse_stmt(lexer)?)
@@ -87,15 +104,9 @@ impl RecursiveDescent<Stmt> {
                     Stmt::If(cond, Box::new(body), otherwise.map(Box::new))
                 }
                 While => {
-                    if lexer.next_if(|t| t.kind == LParen).is_none() {
-                        println!("Expected '(' after 'while'");
-                        return Err(());
-                    }
+                    consume(lexer, LParen)?;
                     let cond = RecursiveDescent::parse(lexer)?;
-                    if lexer.next_if(|t| t.kind == RParen).is_none() {
-                        println!("Expected ')' after condition");
-                        return Err(());
-                    }
+                    consume(lexer, RParen)?;
                     let body = Self::parse_stmt(lexer)?;
                     Stmt::While(cond, Box::new(body))
                 }
@@ -114,11 +125,8 @@ impl RecursiveDescent<Stmt> {
         };
 
         match stmt {
-            Stmt::Expr(_) | Stmt::Decl(_, _) | Stmt::Print(_) | Stmt::Return(_)
-                if lexer.next_if(|t| t.kind == Semicolon).is_none() =>
-            {
-                println!("Expected ; after statement");
-                return Err(());
+            Stmt::Expr(_) | Stmt::Decl(_, _) | Stmt::Print(_) | Stmt::Return(_) => {
+                consume(lexer, Semicolon)?;
             }
             _ => {}
         }
@@ -128,18 +136,8 @@ impl RecursiveDescent<Stmt> {
 
     fn parse_var_decl(
         lexer: &mut Peekable<impl Iterator<Item = Token>>,
-    ) -> Result<Stmt, <Self as Parser<Stmt>>::Error> {
-        let var = match lexer.next() {
-            Some(Token { kind: Ident(i), .. }) => i,
-            Some(Token { kind, .. }) => {
-                println!("Expected identifier, found {kind:?}");
-                return Err(());
-            }
-            None => {
-                println!("EOF error");
-                return Err(());
-            }
-        };
+    ) -> Result<Stmt, ParserError> {
+        let (name, _) = consume_ident(lexer)?;
 
         let init = if lexer.next_if(|t| t.kind == Equal).is_some() {
             Some(RecursiveDescent::<Expr>::parse(lexer)?)
@@ -147,87 +145,51 @@ impl RecursiveDescent<Stmt> {
             None
         };
 
-        if lexer.next_if(|t| t.kind == Semicolon).is_none() {
-            println!("Expected ; after declaration");
-            return Err(());
-        }
+        consume(lexer, Semicolon)?;
 
-        Ok(Stmt::Decl(var, init))
+        Ok(Stmt::Decl(name, init))
     }
 
     fn parse_fun_decl(
         lexer: &mut Peekable<impl Iterator<Item = Token>>,
-    ) -> Result<Stmt, <Self as Parser<Stmt>>::Error> {
-        let name = match lexer.next() {
-            Some(Token { kind: Ident(i), .. }) => i,
-            _ => {
-                println!("Expected identifier after 'fn'");
-                return Err(());
-            }
-        };
+    ) -> Result<Stmt, ParserError> {
+        let (name, _) = consume_ident(lexer)?;
 
-        if lexer.next_if(|t| t.kind == LParen).is_none() {
-            println!("Expected '(' after function name");
-            return Err(());
-        }
+        consume(lexer, LParen)?;
 
         let params = Self::parse_params(lexer)?;
 
-        if lexer.next_if(|t| matches!(t.kind, RParen)).is_none() {
-            println!("Unmatched parenthesis");
-            return Err(());
-        }
+        consume(lexer, RParen)?;
 
-        if lexer.next_if(|t| t.kind == LBrace).is_none() {
-            println!("Expected '{{' before function body");
-            return Err(());
-        }
+        consume(lexer, LBrace)?;
 
         let body = Self::parse_block(lexer)?;
 
-        if lexer.next_if(|t| t.kind == RBrace).is_none() {
-            println!("Expected '}}' after function body");
-            return Err(());
-        }
+        consume(lexer, RBrace)?;
 
         Ok(Stmt::Func(name, params, Box::new(body)))
     }
 
     fn parse_params(
         lexer: &mut Peekable<impl Iterator<Item = Token>>,
-    ) -> Result<Vec<String>, CompilationError> {
+    ) -> Result<Vec<String>, ParserError> {
         let mut params = Vec::new();
         if lexer.peek().is_some_and(|t| t.kind != RParen) {
-            match lexer.next() {
-                Some(Token { kind: Ident(i), .. }) => {
-                    params.push(i);
-                }
-                _ => {
-                    println!("Expected identifier, got ...");
-                    return Err(());
-                }
-            }
+            let (name, _) = consume_ident(lexer)?;
+            params.push(name);
+
             while lexer.next_if(|t| t.kind == Comma).is_some() {
+                let (name, loc) = consume_ident(lexer)?;
+                params.push(name);
                 if params.len() > 255 {
-                    println!("argument count (255) exceeded");
-                    return Err(());
-                }
-                if let Some(Token { kind: Ident(i), .. }) =
-                    lexer.next_if(|t| matches!(t.kind, Ident(_)))
-                {
-                    params.push(i);
-                } else {
-                    println!("Expected identifier, got ...");
-                    return Err(());
+                    return Err(ParserError::TooManyParams { loc });
                 }
             }
         }
         Ok(params)
     }
 
-    fn parse_block(
-        lexer: &mut Peekable<impl Iterator<Item = Token>>,
-    ) -> Result<Stmt, <Self as Parser<Stmt>>::Error> {
+    fn parse_block(lexer: &mut Peekable<impl Iterator<Item = Token>>) -> Result<Stmt, ParserError> {
         let mut block = Vec::new();
         while lexer.peek().is_some_and(|t| t.kind != RBrace) {
             block.push(RecursiveDescent::parse(lexer)?);
@@ -235,13 +197,8 @@ impl RecursiveDescent<Stmt> {
         Ok(Stmt::Block(block))
     }
 
-    fn parse_for(
-        lexer: &mut Peekable<impl Iterator<Item = Token>>,
-    ) -> Result<Stmt, <Self as Parser<Stmt>>::Error> {
-        if lexer.next_if(|t| t.kind == LParen).is_none() {
-            println!("Expected '(' after 'for'");
-            return Err(());
-        }
+    fn parse_for(lexer: &mut Peekable<impl Iterator<Item = Token>>) -> Result<Stmt, ParserError> {
+        consume(lexer, LParen)?;
         // parse init
         let init = if let Some(t) = lexer.next_if(|t| matches!(t.kind, Let | Semicolon)) {
             match t.kind {
@@ -251,10 +208,7 @@ impl RecursiveDescent<Stmt> {
             }
         } else {
             let expr = RecursiveDescent::parse(lexer)?;
-            if lexer.next_if(|t| t.kind == Semicolon).is_none() {
-                println!("Expected ; after expression");
-                return Err(());
-            }
+            consume(lexer, Semicolon)?;
             Some(Stmt::Expr(expr))
         };
         // parse cond
@@ -263,20 +217,14 @@ impl RecursiveDescent<Stmt> {
         } else {
             RecursiveDescent::parse(lexer)?
         };
-        if lexer.next_if(|t| t.kind == Semicolon).is_none() {
-            println!("Expected ; after loop condition");
-            return Err(());
-        };
+        consume(lexer, Semicolon)?;
         // parse increment
         let increment = if lexer.peek().is_some_and(|t| t.kind == RParen) {
             None
         } else {
             Some(RecursiveDescent::parse(lexer)?)
         };
-        if lexer.next_if(|t| t.kind == RParen).is_none() {
-            println!("Expected ')' after for clauses");
-            return Err(());
-        };
+        consume(lexer, RParen)?;
         // parse body
         let body = Self::parse_stmt(lexer)?;
         // assemble loop
@@ -315,17 +263,14 @@ impl RecursiveDescent<Stmt> {
 */
 
 impl Parser<Expr> for RecursiveDescent<Expr> {
-    type Error = ();
-
-    fn parse(lexer: &mut Peekable<impl Iterator<Item = Token>>) -> Result<Expr, Self::Error> {
+    fn parse(lexer: &mut Peekable<impl Iterator<Item = Token>>) -> Result<Expr, ParserError> {
         Self::parse_asgn(lexer)
     }
 }
 
 impl RecursiveDescent<Expr> {
-    fn parse_asgn(
-        lexer: &mut Peekable<impl Iterator<Item = Token>>,
-    ) -> Result<Expr, CompilationError> {
+    fn parse_asgn(lexer: &mut Peekable<impl Iterator<Item = Token>>) -> Result<Expr, ParserError> {
+        let target_loc = lexer.peek().map(|t| t.loc);
         let target = Self::parse_log(lexer)?;
 
         if lexer.next_if(|t| t.kind == Equal).is_some() {
@@ -333,17 +278,17 @@ impl RecursiveDescent<Expr> {
                 let value = Self::parse_asgn(lexer)?;
                 Ok(Expr::Asgn(var, Box::new(value)))
             } else {
-                println!("Invalid asignment target");
-                Err(())
+                // println!("Invalid asignment target");
+                Err(ParserError::InvalidAsgn {
+                    loc: target_loc.expect("Already parsed using this token"),
+                })
             }
         } else {
             Ok(target)
         }
     }
 
-    fn parse_log(
-        lexer: &mut Peekable<impl Iterator<Item = Token>>,
-    ) -> Result<Expr, CompilationError> {
+    fn parse_log(lexer: &mut Peekable<impl Iterator<Item = Token>>) -> Result<Expr, ParserError> {
         let mut lhs = Self::parse_cmp(lexer)?;
 
         while let Some(op) = lexer.next_if(|t| matches!(t.kind, And | Or)) {
@@ -358,9 +303,7 @@ impl RecursiveDescent<Expr> {
         Ok(lhs)
     }
 
-    fn parse_cmp(
-        lexer: &mut Peekable<impl Iterator<Item = Token>>,
-    ) -> Result<Expr, CompilationError> {
+    fn parse_cmp(lexer: &mut Peekable<impl Iterator<Item = Token>>) -> Result<Expr, ParserError> {
         let mut lhs = Self::parse_term(lexer)?;
 
         while let Some(op) = lexer.next_if(|t| {
@@ -384,9 +327,7 @@ impl RecursiveDescent<Expr> {
         Ok(lhs)
     }
 
-    fn parse_term(
-        lexer: &mut Peekable<impl Iterator<Item = Token>>,
-    ) -> Result<Expr, CompilationError> {
+    fn parse_term(lexer: &mut Peekable<impl Iterator<Item = Token>>) -> Result<Expr, ParserError> {
         let mut lhs = Self::parse_factor(lexer)?;
 
         while let Some(op) = lexer.next_if(|t| matches!(t.kind, Plus | Minus)) {
@@ -403,7 +344,7 @@ impl RecursiveDescent<Expr> {
 
     fn parse_factor(
         lexer: &mut Peekable<impl Iterator<Item = Token>>,
-    ) -> Result<Expr, CompilationError> {
+    ) -> Result<Expr, ParserError> {
         let mut lhs = Self::parse_unary(lexer)?;
 
         while let Some(op) = lexer.next_if(|t| matches!(t.kind, Star | Slash)) {
@@ -418,9 +359,7 @@ impl RecursiveDescent<Expr> {
         Ok(lhs)
     }
 
-    fn parse_unary(
-        lexer: &mut Peekable<impl Iterator<Item = Token>>,
-    ) -> Result<Expr, CompilationError> {
+    fn parse_unary(lexer: &mut Peekable<impl Iterator<Item = Token>>) -> Result<Expr, ParserError> {
         if let Some(op) = lexer.next_if(|t| matches!(t.kind, Bang | Minus)) {
             let arg = Self::parse_unary(lexer)?;
 
@@ -434,16 +373,17 @@ impl RecursiveDescent<Expr> {
         }
     }
 
-    fn parse_call(
-        lexer: &mut Peekable<impl Iterator<Item = Token>>,
-    ) -> Result<Expr, CompilationError> {
+    fn parse_call(lexer: &mut Peekable<impl Iterator<Item = Token>>) -> Result<Expr, ParserError> {
         let mut callee = Self::parse_primary(lexer)?;
-        while lexer.next_if(|t| matches!(t.kind, LParen)).is_some() {
+        while let Some(open) = lexer.next_if(|t| matches!(t.kind, LParen)) {
             let args = Self::parse_args(lexer)?;
             callee = Expr::Call(Box::new(callee), args);
             if lexer.next_if(|t| matches!(t.kind, RParen)).is_none() {
                 println!("Unmatched parenthesis");
-                return Err(());
+                return Err(ParserError::Unmatched {
+                    open,
+                    hint: lexer.peek().map(|t| t.loc),
+                });
             }
         }
         Ok(callee)
@@ -451,16 +391,19 @@ impl RecursiveDescent<Expr> {
 
     fn parse_args(
         lexer: &mut Peekable<impl Iterator<Item = Token>>,
-    ) -> Result<Vec<Expr>, CompilationError> {
+    ) -> Result<Vec<Expr>, ParserError> {
         let mut args = Vec::new();
         if lexer.peek().is_some_and(|t| t.kind != RParen) {
             args.push(Self::parse(lexer)?);
             while lexer.next_if(|t| t.kind == Comma).is_some() {
-                if args.len() > 255 {
-                    println!("argument count (255) exceeded");
-                    return Err(());
-                }
+                let arg_loc = lexer.peek().map(|t| t.loc);
                 args.push(Self::parse(lexer)?);
+                if args.len() > 255 {
+                    // println!("argument count (255) exceeded");
+                    return Err(ParserError::TooManyArgs {
+                        loc: arg_loc.expect("Already parsed using this token"),
+                    });
+                }
             }
         }
         Ok(args)
@@ -468,11 +411,11 @@ impl RecursiveDescent<Expr> {
 
     fn parse_primary(
         lexer: &mut Peekable<impl Iterator<Item = Token>>,
-    ) -> Result<Expr, CompilationError> {
+    ) -> Result<Expr, ParserError> {
         match lexer.next() {
             None => {
                 println!("EOF error");
-                Err(())
+                Err(ParserError::EOF)
             }
             Some(t) => match t.kind {
                 Nil => Ok(Expr::Lit(Val::Nil)),
@@ -484,16 +427,19 @@ impl RecursiveDescent<Expr> {
                 LParen => {
                     let inner = Self::parse_log(lexer)?;
                     let closing = lexer.next();
-                    if closing.is_some_and(|t| t.kind == RParen) {
+                    if closing.as_ref().is_some_and(|t| t.kind == RParen) {
                         Ok(inner)
                     } else {
-                        println!("Unclosed paren");
-                        Err(())
+                        // println!("Unclosed paren");
+                        Err(ParserError::Unmatched {
+                            open: t,
+                            hint: closing.map(|t| t.loc),
+                        })
                     }
                 }
-                x => {
-                    println!("Unexpected Token: {x:?}");
-                    Err(())
+                _ => {
+                    // println!("Unexpected Token: {x:?}");
+                    Err(ParserError::Unexpected { tok: t })
                 }
             },
         }

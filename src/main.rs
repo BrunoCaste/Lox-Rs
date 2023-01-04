@@ -13,6 +13,7 @@ use parser::{Parser, RecursiveDescent};
 use resolver::Resolver;
 use scope::Scope;
 
+mod error;
 mod expr;
 mod globals;
 mod lexer;
