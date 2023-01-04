@@ -11,12 +11,14 @@ use std::{
 use lexer::Lexer;
 use parser::{Parser, RecursiveDescent};
 use prog::Scope;
+use resolver::Resolver;
 
 mod expr;
 mod globals;
 mod lexer;
 mod parser;
 mod prog;
+mod resolver;
 mod stmt;
 mod val;
 
@@ -33,14 +35,14 @@ fn run_file(path: &str) -> ExitCode {
             return ExitCode::from(74);
         }
     };
-    run(&src, Scope::from_globals(globals::globals())).unwrap_or(ExitCode::from(0))
+    run(&src, Scope::new_global(globals::globals())).unwrap_or(ExitCode::from(0))
 }
 
 fn repl() -> ExitCode {
     let stdin = stdin();
     let mut input = String::with_capacity(64);
 
-    let env = Scope::from_globals(globals::globals());
+    let env = Scope::new_global(globals::globals());
 
     loop {
         input.clear();
@@ -58,13 +60,16 @@ fn repl() -> ExitCode {
 
 fn run(src: &str, env: Rc<Scope>) -> Option<ExitCode> {
     let mut lexer = Lexer::new(src.chars()).peekable();
-    let prog = match RecursiveDescent::<prog::Prog>::parse(&mut lexer) {
+    let mut prog = match RecursiveDescent::<prog::Prog>::parse(&mut lexer) {
         Ok(p) => p,
         Err(e) => {
             println!("syntax error\t{e:?}");
             return Some(ExitCode::from(1));
         }
     };
+
+    let mut r = Resolver::new();
+    r.resolve(&mut prog);
 
     match prog.exec(env) {
         Ok(_) => None,

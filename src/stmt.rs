@@ -22,8 +22,7 @@ impl Stmt {
     pub fn exec(&self, scope: Rc<Scope>) -> Result<Val, ()> {
         match self {
             Self::Block(stmts) => {
-                // let inner = Scope::from(scope);
-                let inner = Scope::inner(&scope);
+                let inner = Scope::new_local(&scope);
                 for s in stmts {
                     let val = s.exec(Rc::clone(&inner))?;
                     if val != Val::NoVal {

@@ -59,7 +59,7 @@ impl Expr {
         match self {
             Asgn(var, expr) => {
                 let val = expr.eval(Rc::clone(&scope))?;
-                scope.asgn(&var.name, val.clone())?;
+                scope.asgn(var, val.clone())?;
                 Ok(val)
             }
             Call(callee, args) => match callee.eval(Rc::clone(&scope))? {
@@ -110,7 +110,7 @@ impl Expr {
                 _ => Err(()),
             },
             Lit(v) => Ok(v.clone()),
-            Var(var) => scope.get(&var.name),
+            Var(var) => scope.get(var),
         }
     }
 }

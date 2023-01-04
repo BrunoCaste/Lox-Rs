@@ -70,7 +70,7 @@ impl Callable for Function {
                         println!("Expected {} arguments, got {}", params.len(), args.len());
                         Err(())
                     } else {
-                        let inner = Scope::inner(closure);
+                        let inner = Scope::new_local(closure);
                         for (p, a) in params.iter().zip(args) {
                             inner.def(p, a);
                         }
