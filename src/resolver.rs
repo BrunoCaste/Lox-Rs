@@ -50,7 +50,7 @@ impl Resolver {
     }
 
     pub fn resolve(&mut self, ast: &mut Prog) {
-        for s in &mut ast.0 {
+        for s in &mut ast.stmts {
             self.resolve_stmt(s);
         }
     }

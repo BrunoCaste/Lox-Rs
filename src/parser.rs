@@ -23,10 +23,10 @@ impl Parser<Prog> for RecursiveDescent<Prog> {
     type Error = ();
 
     fn parse(lexer: &mut Peekable<impl Iterator<Item = Token>>) -> Result<Prog, Self::Error> {
-        let mut program = Prog(Vec::new());
+        let mut program = Prog::new();
 
         while lexer.peek().is_some() {
-            program.0.push(RecursiveDescent::<Stmt>::parse(lexer)?);
+            program.stmts.push(RecursiveDescent::<Stmt>::parse(lexer)?);
         }
         Ok(program)
     }

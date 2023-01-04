@@ -1,12 +1,19 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::rc::Rc;
 
-use crate::{expr::Variable, stmt::Stmt, val::Val};
+use crate::{scope::Scope, stmt::Stmt};
 
-pub struct Prog(pub Vec<Stmt>);
+#[derive(Debug)]
+pub struct Prog {
+    pub stmts: Vec<Stmt>,
+}
 
 impl Prog {
+    pub fn new() -> Self {
+        Self { stmts: Vec::new() }
+    }
+
     pub fn exec(&self, scope: Rc<Scope>) -> Result<(), ()> {
-        for s in &self.0 {
+        for s in &self.stmts {
             s.exec(Rc::clone(&scope))?;
         }
         Ok(())
