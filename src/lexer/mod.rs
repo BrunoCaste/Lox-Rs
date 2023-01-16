@@ -31,6 +31,54 @@ pub struct Token {
     pub loc: Loc,
 }
 
+impl std::fmt::Display for TokKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use TokKind::*;
+        match &self {
+            And => write!(f, "'and'"),
+            Class => write!(f, "'class'"),
+            Else => write!(f, "'else'"),
+            False => write!(f, "'false'"),
+            Fn => write!(f, "'fn'"),
+            For => write!(f, "'for'"),
+            If => write!(f, "'if'"),
+            Let => write!(f, "'let'"),
+            Nil => write!(f, "'nil'"),
+            Or => write!(f, "'or'"),
+            Print => write!(f, "'print'"),
+            Return => write!(f, "'return'"),
+            This => write!(f, "'this'"),
+            True => write!(f, "'true'"),
+            While => write!(f, "'while'"),
+            LParen => write!(f, "'('"),
+            RParen => write!(f, "')'"),
+            LBrace => write!(f, "'{{'"),
+            RBrace => write!(f, "'}}'"),
+            Comma => write!(f, "','"),
+            Dot => write!(f, "'.'"),
+            Minus => write!(f, "'-'"),
+            Plus => write!(f, "'+'"),
+            Semicolon => write!(f, "';'"),
+            Star => write!(f, "'*'"),
+            Bang => write!(f, "'!'"),
+            Equal => write!(f, "'='"),
+            Less => write!(f, "'<'"),
+            Greater => write!(f, "'>'"),
+            Slash => write!(f, "'/'"),
+            BangEqual => write!(f, "'!='"),
+            EqualEqual => write!(f, "'=='"),
+            LessEqual => write!(f, "'<='"),
+            GreaterEqual => write!(f, "'>='"),
+            Str(_) => write!(f, "a string literal"),
+            Number(_) => write!(f, "a number literal"),
+            Ident(_) => write!(f, "an identifier"),
+            Comment => write!(f, "a comment"),
+            Unexpected => write!(f, "an invalid symbol"),
+            Unterminated => write!(f, "an unterminated string literal"),
+        }
+    }
+}
+
 #[derive(PartialEq, Debug, Clone)]
 pub enum TokKind {
     // Keywords

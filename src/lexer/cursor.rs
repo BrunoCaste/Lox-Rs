@@ -6,6 +6,12 @@ pub struct Loc {
     pub col: usize,
 }
 
+impl std::fmt::Display for Loc {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}", self.row, self.col)
+    }
+}
+
 #[derive(Clone)]
 pub struct Cursor<I>
 where

@@ -13,6 +13,8 @@ use parser::{Parser, RecursiveDescent};
 use resolver::Resolver;
 use scope::Scope;
 
+use crate::error::Report;
+
 mod error;
 mod expr;
 mod globals;
@@ -65,8 +67,8 @@ fn run(src: &str, env: Rc<Scope>) -> Option<ExitCode> {
     let mut prog = match RecursiveDescent::<prog::Prog>::parse(&mut lexer) {
         Ok(p) => p,
         Err(e) => {
-            println!("syntax error\t{e:?}");
-            return Some(ExitCode::from(1));
+            e.report(src);
+            return Some(ExitCode::from(65));
         }
     };
 
@@ -77,7 +79,7 @@ fn run(src: &str, env: Rc<Scope>) -> Option<ExitCode> {
         Ok(_) => None,
         e => {
             println!("runtime error\t{e:?}");
-            Some(ExitCode::from(1))
+            Some(ExitCode::from(70))
         }
     }
 }

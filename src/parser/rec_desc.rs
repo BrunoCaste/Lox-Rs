@@ -3,51 +3,13 @@ use std::iter::Peekable;
 use crate::{
     error::ParserError,
     expr::{Expr, Variable},
-    lexer::{
-        Loc,
-        TokKind::{self, *},
-    },
+    lexer::{TokKind::*, Token},
     prog::Prog,
     stmt::Stmt,
     val::Val,
 };
 
-pub use crate::lexer::Token;
-
-pub trait Parser<Output> {
-    fn parse(lexer: &mut Peekable<impl Iterator<Item = Token>>) -> Result<Output, ParserError>;
-}
-
-fn consume(
-    lexer: &mut Peekable<impl Iterator<Item = Token>>,
-    expected: TokKind,
-) -> Result<Token, ParserError> {
-    if let Some(t) = lexer.next_if(|t| matches!(t.kind, Ident(_))) {
-        Ok(t)
-    } else {
-        Err(ParserError::Expected {
-            exp: expected,
-            fnd: lexer.peek().map(|t| t.clone()),
-        })
-    }
-}
-
-fn consume_ident(
-    lexer: &mut Peekable<impl Iterator<Item = Token>>,
-) -> Result<(String, Loc), ParserError> {
-    if let Some(Token {
-        kind: Ident(name),
-        loc,
-    }) = lexer.next_if(|t| matches!(t.kind, Ident(_)))
-    {
-        Ok((name, loc))
-    } else {
-        Err(ParserError::Expected {
-            exp: Ident(Default::default()),
-            fnd: lexer.peek().map(|t| t.clone()),
-        })
-    }
-}
+use super::{consume, consume_ident, Parser};
 
 pub struct RecursiveDescent<T>(std::marker::PhantomData<T>);
 
@@ -414,7 +376,7 @@ impl RecursiveDescent<Expr> {
     ) -> Result<Expr, ParserError> {
         match lexer.next() {
             None => {
-                println!("EOF error");
+                // println!("EOF error");
                 Err(ParserError::EOF)
             }
             Some(t) => match t.kind {
