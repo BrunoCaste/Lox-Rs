@@ -56,8 +56,8 @@ fn repl() -> ExitCode {
             .read_line(&mut input)
             .expect("Error reading from stdin");
 
-        if let Some(e) = run(&input, Rc::clone(&env)) {
-            return e;
+        if let Some(_e) = run(&input, Rc::clone(&env)) {
+            // return e;
         }
     }
 }
